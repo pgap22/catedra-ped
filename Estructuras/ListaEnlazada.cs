@@ -1,9 +1,8 @@
 namespace ProyectoCatedra.Estructuras
 {
-    // Implementación manual de una Lista Enlazada Simple
     public class ListaEnlazada
     {
-        private NodoLista cabeza;
+        private NodoLista? cabeza;
         private int contador;
 
         public ListaEnlazada()
@@ -31,22 +30,20 @@ namespace ProyectoCatedra.Estructuras
             contador++;
         }
 
-        public object Obtener(int indice)
+        public object? Obtener(int indice)
         {
-            if (indice < 0 || indice >= contador) return null;
+            if (indice < 0 || indice >= contador || cabeza == null) return null;
 
             NodoLista actual = cabeza;
             for (int i = 0; i < indice; i++)
             {
+                if (actual.Siguiente == null) return null;
                 actual = actual.Siguiente;
             }
             return actual.Valor;
         }
 
-        public int Conteo()
-        {
-            return contador;
-        }
+        public int Conteo() => contador;
 
         public void Limpiar()
         {

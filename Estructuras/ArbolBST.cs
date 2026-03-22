@@ -2,15 +2,14 @@ using System;
 
 namespace ProyectoCatedra.Estructuras
 {
-    // Árbol Binario de Búsqueda que soporta duplicados guardando una lista en cada nodo
     public class ArbolBST
     {
         private class NodoArbol
         {
             public string Llave { get; set; }
-            public ListaEnlazada Valores { get; set; } // Lista para manejar duplicados
-            public NodoArbol Izquierdo { get; set; }
-            public NodoArbol Derecho { get; set; }
+            public ListaEnlazada Valores { get; set; }
+            public NodoArbol? Izquierdo { get; set; }
+            public NodoArbol? Derecho { get; set; }
 
             public NodoArbol(string llave, object valor)
             {
@@ -22,14 +21,14 @@ namespace ProyectoCatedra.Estructuras
             }
         }
 
-        private NodoArbol raiz;
+        private NodoArbol? raiz;
 
         public void Insertar(string llave, object valor)
         {
             raiz = InsertarRecursivo(raiz, llave, valor);
         }
 
-        private NodoArbol InsertarRecursivo(NodoArbol actual, string llave, object valor)
+        private NodoArbol InsertarRecursivo(NodoArbol? actual, string llave, object valor)
         {
             if (actual == null) return new NodoArbol(llave, valor);
 
@@ -37,7 +36,7 @@ namespace ProyectoCatedra.Estructuras
 
             if (comparacion == 0)
             {
-                actual.Valores.Agregar(valor); // Es un duplicado, se agrega a la lista del nodo
+                actual.Valores.Agregar(valor);
             }
             else if (comparacion < 0)
             {
@@ -51,12 +50,12 @@ namespace ProyectoCatedra.Estructuras
             return actual;
         }
 
-        public ListaEnlazada Buscar(string llave)
+        public ListaEnlazada? Buscar(string llave)
         {
             return BuscarRecursivo(raiz, llave);
         }
 
-        private ListaEnlazada BuscarRecursivo(NodoArbol actual, string llave)
+        private ListaEnlazada? BuscarRecursivo(NodoArbol? actual, string llave)
         {
             if (actual == null) return null;
 

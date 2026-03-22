@@ -12,10 +12,14 @@ namespace ProyectoCatedra
     {
         private CategoriaServicio servicio;
         private Pila undoStack;
-        private TextBox txtNombre;
-        private DataGridView dgv;
-        private Button btnGuardar, btnEditar, btnEliminar, btnUndo;
-        private Categoria seleccionado;
+        private TextBox txtNombre = new TextBox();
+        private DataGridView dgv = new DataGridView();
+        private Button btnGuardar = new Button();
+        private Button btnEditar = new Button();
+        private Button btnEliminar = new Button();
+        private Button btnUndo = new Button();
+        private Button btnNuevo = new Button();
+        private Categoria? seleccionado;
 
         public FormCategorias() { 
             servicio = new CategoriaServicio(); 
@@ -30,20 +34,24 @@ namespace ProyectoCatedra
             this.Size = new Size(550, 480);
             this.StartPosition = FormStartPosition.CenterParent;
 
-            Label lbl = new Label { Text = "Nombre:", Location = new Point(20, 20), AutoSize = true };
-            txtNombre = new TextBox { Location = new Point(20, 40), Size = new Size(180, 20) };
+            btnNuevo.Text = "Nuevo"; btnNuevo.Location = new Point(20, 15); btnNuevo.Size = new Size(70, 25);
+            btnNuevo.Click += (s, e) => Limpiar();
+
+            Label lbl = new Label { Text = "Nombre:", Location = new Point(20, 45), AutoSize = true };
+            txtNombre.Location = new Point(20, 65); txtNombre.Size = new Size(180, 20);
             
-            btnGuardar = new Button { Text = "Guardar", Location = new Point(210, 38), Size = new Size(70, 25) };
+            btnGuardar.Text = "Guardar"; btnGuardar.Location = new Point(210, 63); btnGuardar.Size = new Size(70, 25);
             btnGuardar.Click += (s, e) => {
-                if (servicio.ExisteNombre(txtNombre.Text)) { MessageBox.Show("Ya existe una categoría con ese nombre.", "Duplicado", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (servicio.ExisteNombre(txtNombre.Text)) { MessageBox.Show("Ya existe una categoría con ese nombre."); return; }
                 var c = new Categoria { Nombre = txtNombre.Text };
                 servicio.Guardar(c);
                 undoStack.Empujar(new AccionUndo(TipoAccion.Insertar, "Categorias", c));
                 Cargar(); Limpiar();
             };
 
-            btnEditar = new Button { Text = "Modificar", Location = new Point(290, 38), Size = new Size(70, 25), Enabled = false };
+            btnEditar.Text = "Modificar"; btnEditar.Location = new Point(290, 63); btnEditar.Size = new Size(70, 25); btnEditar.Enabled = false;
             btnEditar.Click += (s, e) => {
+                if (seleccionado == null) return;
                 var anterior = new Categoria { Id = seleccionado.Id, Nombre = seleccionado.Nombre };
                 seleccionado.Nombre = txtNombre.Text;
                 servicio.Actualizar(seleccionado);
@@ -51,64 +59,95 @@ namespace ProyectoCatedra
                 Cargar(); Limpiar();
             };
 
-            btnEliminar = new Button { Text = "Eliminar", Location = new Point(370, 38), Size = new Size(70, 25), Enabled = false };
+            btnEliminar.Text = "Eliminar"; btnEliminar.Location = new Point(370, 63); btnEliminar.Size = new Size(70, 25); btnEliminar.Enabled = false;
             btnEliminar.Click += (s, e) => {
+                if (seleccionado == null) return;
                 undoStack.Empujar(new AccionUndo(TipoAccion.Eliminar, "Categorias", seleccionado));
                 servicio.Eliminar(seleccionado.Id);
                 Cargar(); Limpiar();
             };
 
-            btnUndo = new Button { Text = "Deshacer (Pila)", Location = new Point(20, 360), Size = new Size(120, 30), BackColor = Color.LightGray };
-            btnUndo.Click += Undo;
+            btnUndo.Text = "Deshacer"; btnUndo.Location = new Point(20, 360); btnUndo.Size = new Size(100, 30);
+            btnUndo.Click += (s, e) => {
+                var acc = (AccionUndo?)undoStack.Pop();
+                if (acc == null) return;
+                
+                if (acc.Tipo == TipoAccion.Importacion) {
+                    var l = (ListaEnlazada)acc.Datos;
+                    for (int i = 0; i < l.Conteo(); i++) {
+                        var cImp = (Categoria?)l.Obtener(i);
+                        if (cImp != null) {
+                            var id = servicio.ObtenerIdPorNombre(cImp.Nombre);
+                            if (id != -1) servicio.Eliminar(id);
+                        }
+                    }
+                } else {
+                    var c = (Categoria)acc.Datos;
+                    if (acc.Tipo == TipoAccion.Insertar) {
+                        var id = servicio.ObtenerIdPorNombre(c.Nombre);
+                        if (id != -1) servicio.Eliminar(id);
+                    } else if (acc.Tipo == TipoAccion.Editar) servicio.Actualizar(c);
+                    else if (acc.Tipo == TipoAccion.Eliminar) servicio.Guardar(c);
+                }
+                Cargar();
+            };
 
-            dgv = new DataGridView { Location = new Point(20, 80), Size = new Size(490, 260), SelectionMode = DataGridViewSelectionMode.FullRowSelect, ReadOnly = true, AllowUserToAddRows = false, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill };
+            dgv.Location = new Point(20, 100); dgv.Size = new Size(490, 240); dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect; dgv.ReadOnly = true; dgv.AllowUserToAddRows = false; dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dgv.Columns.Add("Id", "ID"); dgv.Columns.Add("Nom", "Nombre");
             dgv.SelectionChanged += (s, e) => {
                 if (dgv.SelectedRows.Count > 0) {
-                    seleccionado = new Categoria { Id = (int)dgv.SelectedRows[0].Cells[0].Value, Nombre = dgv.SelectedRows[0].Cells[1].Value.ToString() };
+                    seleccionado = new Categoria { 
+                        Id = (int)dgv.SelectedRows[0].Cells[0].Value, 
+                        Nombre = dgv.SelectedRows[0].Cells[1].Value?.ToString() ?? "" 
+                    };
                     txtNombre.Text = seleccionado.Nombre; btnEditar.Enabled = btnEliminar.Enabled = true;
                 }
             };
 
-            Button btnImp = new Button { Text = "Importar", Location = new Point(150, 360), Size = new Size(80, 30) };
-            btnImp.Click += Importar;
+            Button btnImp = new Button { Text = "Importar CSV", Location = new Point(130, 360), Size = new Size(100, 30) };
+            btnImp.Click += (s, e) => {
+                try {
+                    OpenFileDialog ofd = new OpenFileDialog();
+                    if (ofd.ShowDialog() == DialogResult.OK) {
+                        var l = ManejadorCSV.ParsearCategorias(ofd.FileName);
+                        
+                        // Estructura de datos: TablaHash para O(1) en busqueda de duplicados
+                        TablaHash hashActuales = new TablaHash();
+                        var listaBD = servicio.ListarTodas();
+                        for(int j=0; j<listaBD.Conteo(); j++) {
+                            var catBD = (Categoria?)listaBD.Obtener(j);
+                            if(catBD != null) hashActuales.Insertar(catBD.Nombre.ToUpper(), catBD);
+                        }
 
-            Button btnPlant = new Button { Text = "Plantilla", Location = new Point(240, 360), Size = new Size(80, 30) };
-            btnPlant.Click += (s, e) => ManejadorCSV.GuardarPlantillaConDialogo("plantilla_categorias.csv", "Nombre\nGranos\nLacteos");
+                        ListaEnlazada insertadosReales = new ListaEnlazada();
 
-            this.Controls.AddRange(new Control[] { lbl, txtNombre, btnGuardar, btnEditar, btnEliminar, btnUndo, dgv, btnImp, btnPlant });
+                        for (int i = 0; i < l.Conteo(); i++) {
+                            var c = (Categoria?)l.Obtener(i);
+                            if (c != null && hashActuales.Buscar(c.Nombre.ToUpper()) == null) {
+                                servicio.Guardar(c);
+                                hashActuales.Insertar(c.Nombre.ToUpper(), c); // Lo agregamos al hash para no duplicarlo si viene 2 veces en el CSV
+                                insertadosReales.Agregar(c);
+                            }
+                        }
+                        
+                        if (insertadosReales.Conteo() > 0) {
+                            undoStack.Empujar(new AccionUndo(TipoAccion.Importacion, "Categorias", insertadosReales));
+                            MessageBox.Show($"Se importaron {insertadosReales.Conteo()} categorías nuevas.");
+                        } else {
+                            MessageBox.Show("No se importó ninguna categoría. Todas estaban duplicadas.");
+                        }
+                        Cargar();
+                    }
+                } catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
+            };
+
+            Button btnPlantilla = new Button { Text = "Bajar Plantilla", Location = new Point(240, 360), Size = new Size(110, 30) };
+            btnPlantilla.Click += (s, e) => ManejadorCSV.GuardarPlantillaConDialogo("plantilla_categorias.csv", "Nombre\nGranos Basicos\nLacteos\nAceites");
+
+            this.Controls.AddRange(new Control[] { btnNuevo, lbl, txtNombre, btnGuardar, btnEditar, btnEliminar, btnUndo, dgv, btnImp, btnPlantilla });
         }
 
-        private void Importar(object sender, EventArgs e)
-        {
-            try {
-                OpenFileDialog ofd = new OpenFileDialog();
-                if (ofd.ShowDialog() == DialogResult.OK) {
-                    var l = ManejadorCSV.ParsearCategorias(ofd.FileName);
-                    for (int i = 0; i < l.Conteo(); i++) servicio.Guardar((Categoria)l.Obtener(i));
-                    Cargar();
-                }
-            } catch (Exception ex) { MessageBox.Show("Error al importar categorías:\n" + ex.Message, "Falla", MessageBoxButtons.OK, MessageBoxIcon.Error); }
-        }
-
-        private void Undo(object sender, EventArgs e)
-        {
-            var acc = (AccionUndo)undoStack.Pop();
-            if (acc == null) { MessageBox.Show("No hay acciones para deshacer."); return; }
-            var c = (Categoria)acc.Datos;
-            if (acc.Tipo == TipoAccion.Insertar) {
-                // Para borrar lo insertado necesito el ID. En este caso el ultimo nombre
-                var id = servicio.ObtenerIdPorNombre(c.Nombre);
-                if (id != -1) servicio.Eliminar(id);
-            } else if (acc.Tipo == TipoAccion.Editar) {
-                servicio.Actualizar(c);
-            } else if (acc.Tipo == TipoAccion.Eliminar) {
-                servicio.Guardar(c);
-            }
-            Cargar();
-        }
-
-        private void Limpiar() { txtNombre.Clear(); seleccionado = null; btnEditar.Enabled = btnEliminar.Enabled = false; }
-        private void Cargar() { dgv.Rows.Clear(); var l = servicio.ListarTodas(); for (int i = 0; i < l.Conteo(); i++) { var c = (Categoria)l.Obtener(i); dgv.Rows.Add(c.Id, c.Nombre); } }
+        private void Limpiar() { txtNombre.Clear(); seleccionado = null; btnEditar.Enabled = btnEliminar.Enabled = false; dgv.ClearSelection(); }
+        private void Cargar() { dgv.Rows.Clear(); var l = servicio.ListarTodas(); for (int i = 0; i < l.Conteo(); i++) { var c = (Categoria?)l.Obtener(i); if (c != null) dgv.Rows.Add(c.Id, c.Nombre); } }
     }
 }

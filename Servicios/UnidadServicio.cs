@@ -21,6 +21,31 @@ namespace ProyectoCatedra.Servicios
             }
         }
 
+        public void Actualizar(UnidadMedida u)
+        {
+            using (var conexion = conexionDB.ObtenerConexion())
+            {
+                conexion.Open();
+                string sql = "UPDATE UnidadesMedida SET Nombre = @nom, Tipo = @tipo WHERE Id = @id";
+                using (var cmd = new SQLiteCommand(sql, conexion)) { 
+                    cmd.Parameters.AddWithValue("@nom", u.Nombre); 
+                    cmd.Parameters.AddWithValue("@tipo", u.Tipo); 
+                    cmd.Parameters.AddWithValue("@id", u.Id); 
+                    cmd.ExecuteNonQuery(); 
+                }
+            }
+        }
+
+        public int ObtenerIdPorNombre(string nombre)
+        {
+            using (var conexion = conexionDB.ObtenerConexion())
+            {
+                conexion.Open();
+                string sql = "SELECT Id FROM UnidadesMedida WHERE Nombre = @nom LIMIT 1";
+                using (var cmd = new SQLiteCommand(sql, conexion)) { cmd.Parameters.AddWithValue("@nom", nombre); var res = cmd.ExecuteScalar(); return res != null ? Convert.ToInt32(res) : -1; }
+            }
+        }
+
         public ListaEnlazada ListarTodas()
         {
             ListaEnlazada lista = new ListaEnlazada();
@@ -76,6 +101,9 @@ namespace ProyectoCatedra.Servicios
             using (var conexion = conexionDB.ObtenerConexion())
             {
                 conexion.Open();
+                string sqlAsoc = "DELETE FROM CategoriaUnidades WHERE IdUnidad = @id";
+                using (var cmd = new SQLiteCommand(sqlAsoc, conexion)) { cmd.Parameters.AddWithValue("@id", id); cmd.ExecuteNonQuery(); }
+
                 string sql = "DELETE FROM UnidadesMedida WHERE Id = @id";
                 using (var cmd = new SQLiteCommand(sql, conexion)) { cmd.Parameters.AddWithValue("@id", id); cmd.ExecuteNonQuery(); }
             }

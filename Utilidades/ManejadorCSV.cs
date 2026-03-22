@@ -28,7 +28,7 @@ namespace ProyectoCatedra.Utilidades
             ListaEnlazada lista = new ListaEnlazada();
             if (!File.Exists(ruta)) return lista;
             string[] lineas = File.ReadAllLines(ruta);
-            for (int i = 1; i < lineas.Length; i++) // Saltamos encabezado
+            for (int i = 1; i < lineas.Length; i++)
             {
                 if (!string.IsNullOrWhiteSpace(lineas[i]))
                     lista.Agregar(new Categoria { Nombre = lineas[i].Trim() });
@@ -60,6 +60,20 @@ namespace ProyectoCatedra.Utilidades
                 string[] p = lineas[i].Split(',');
                 if (p.Length >= 4)
                     lista.Agregar(new Producto { SKU = p[0].Trim(), Nombre = p[1].Trim(), NombreCategoria = p[2].Trim(), Stock = double.TryParse(p[3], out double s) ? s : 0 });
+            }
+            return lista;
+        }
+
+        public static ListaEnlazada ParsearUnidades(string ruta)
+        {
+            ListaEnlazada lista = new ListaEnlazada();
+            if (!File.Exists(ruta)) return lista;
+            string[] lineas = File.ReadAllLines(ruta);
+            for (int i = 1; i < lineas.Length; i++)
+            {
+                string[] p = lineas[i].Split(',');
+                if (p.Length >= 2)
+                    lista.Agregar(new UnidadMedida { Nombre = p[0].Trim(), Tipo = p[1].Trim() });
             }
             return lista;
         }
