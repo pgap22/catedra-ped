@@ -33,6 +33,7 @@ namespace ProyectoCatedra
 
         private void InicializarComponentes()
         {
+            this.AutoScaleMode = AutoScaleMode.None;
             this.Text = "Padrón de Beneficiarios";
             this.Size = new Size(650, 550);
             this.StartPosition = FormStartPosition.CenterParent;
@@ -174,6 +175,16 @@ namespace ProyectoCatedra
             btnPlantilla.Click += (s, e) => ManejadorCSV.GuardarPlantillaConDialogo("plantilla_beneficiarios.csv", "Nombre,Miembros\nJuan Perez,5\nMaria Lopez,3");
 
             this.Controls.AddRange(new Control[] { btnNuevo, l1, txtNombre, l2, numMiembros, btnGuardar, btnEditar, btnEliminar, gb, dgv, btnUndo, btnImp, btnPlantilla });
+            AplicarEscaladoDpi();
+        }
+
+        private void AplicarEscaladoDpi()
+        {
+            float factor = DeviceDpi / 96f;
+            if (factor <= 1f) return;
+
+            this.Size = new Size((int)Math.Round(this.Width * factor), (int)Math.Round(this.Height * factor));
+            EscaladorDpi.EscalarJerarquia(this, factor);
         }
 
         private void Limpiar() { txtNombre.Clear(); numMiembros.Value = 1; seleccionado = null; btnEditar.Enabled = btnEliminar.Enabled = false; dgv.ClearSelection(); }

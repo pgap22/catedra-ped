@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using ProyectoCatedra.Utilidades;
 
 namespace ProyectoCatedra
 {
@@ -13,6 +14,7 @@ namespace ProyectoCatedra
         public Form1()
         {
             InitializeComponent();
+            this.AutoScaleMode = AutoScaleMode.None;
             this.Text = "Sistema de Donaciones";
             this.Size = new Size(900, 520);
             this.StartPosition = FormStartPosition.CenterScreen;
@@ -22,6 +24,7 @@ namespace ProyectoCatedra
 
             InicializarMenuSuperior();
             InicializarCentro();
+            AplicarEscaladoDpi();
         }
 
         private void InicializarMenuSuperior()
@@ -78,6 +81,15 @@ namespace ProyectoCatedra
             panelCentro.Controls.Add(lblTituloCentro);
             panelCentro.Controls.Add(lblSubtitulo);
             this.Controls.Add(panelCentro);
+        }
+
+        private void AplicarEscaladoDpi()
+        {
+            float factor = DeviceDpi / 96f;
+            if (factor <= 1f) return;
+
+            this.Size = new Size((int)Math.Round(this.Width * factor), (int)Math.Round(this.Height * factor));
+            EscaladorDpi.EscalarJerarquia(this, factor);
         }
     }
 }

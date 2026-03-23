@@ -13,13 +13,18 @@ namespace ProyectoCatedra.Estructuras
             contador = 0;
         }
 
-        public void Insertar(int prioridad, object valor)
+        public void Insertar(decimal prioridad, object valor)
         {
             if (contador == capacidad) Redimensionar();
             var nuevo = new ElementoHeap { Prioridad = prioridad, Valor = valor };
             elementos[contador] = nuevo;
             Subir(contador);
             contador++;
+        }
+
+        public void Insertar(int prioridad, object valor)
+        {
+            Insertar((decimal)prioridad, valor);
         }
 
         public object? ExtraerMaximo()
@@ -85,7 +90,7 @@ namespace ProyectoCatedra.Estructuras
 
         private class ElementoHeap
         {
-            public int Prioridad { get; set; }
+            public decimal Prioridad { get; set; }
             public object Valor { get; set; } = string.Empty;
         }
     }

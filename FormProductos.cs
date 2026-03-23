@@ -35,6 +35,7 @@ namespace ProyectoCatedra
 
         private void InicializarComponentes()
         {
+            this.AutoScaleMode = AutoScaleMode.None;
             this.Text = "Inventario de Productos";
             this.Size = new Size(800, 520);
             this.StartPosition = FormStartPosition.CenterParent;
@@ -202,6 +203,16 @@ namespace ProyectoCatedra
             btnPlantilla.Click += (s, e) => ManejadorCSV.GuardarPlantillaConDialogo("plantilla_productos.csv", "SKU,Nombre,NombreCategoria,Stock\nSKU001,Arroz,Granos Basicos,50\nSKU002,Leche,Lacteos,100");
 
             this.Controls.AddRange(new Control[] { btnNuevo, l1, txtSKU, l2, txtNombre, l3, cbCat, l4, numStock, btnGuardar, btnEliminar, btnUndo, dgv, btnImp, btnPlantilla });
+            AplicarEscaladoDpi();
+        }
+
+        private void AplicarEscaladoDpi()
+        {
+            float factor = DeviceDpi / 96f;
+            if (factor <= 1f) return;
+
+            this.Size = new Size((int)Math.Round(this.Width * factor), (int)Math.Round(this.Height * factor));
+            EscaladorDpi.EscalarJerarquia(this, factor);
         }
 
         private void GenerarNuevoSKU()

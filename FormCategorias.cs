@@ -30,6 +30,7 @@ namespace ProyectoCatedra
 
         private void InicializarComponentes()
         {
+            this.AutoScaleMode = AutoScaleMode.None;
             this.Text = "CRUD Categorías (Con Undo)";
             this.Size = new Size(550, 480);
             this.StartPosition = FormStartPosition.CenterParent;
@@ -145,6 +146,16 @@ namespace ProyectoCatedra
             btnPlantilla.Click += (s, e) => ManejadorCSV.GuardarPlantillaConDialogo("plantilla_categorias.csv", "Nombre\nGranos Basicos\nLacteos\nAceites");
 
             this.Controls.AddRange(new Control[] { btnNuevo, lbl, txtNombre, btnGuardar, btnEditar, btnEliminar, btnUndo, dgv, btnImp, btnPlantilla });
+            AplicarEscaladoDpi();
+        }
+
+        private void AplicarEscaladoDpi()
+        {
+            float factor = DeviceDpi / 96f;
+            if (factor <= 1f) return;
+
+            this.Size = new Size((int)Math.Round(this.Width * factor), (int)Math.Round(this.Height * factor));
+            EscaladorDpi.EscalarJerarquia(this, factor);
         }
 
         private void Limpiar() { txtNombre.Clear(); seleccionado = null; btnEditar.Enabled = btnEliminar.Enabled = false; dgv.ClearSelection(); }

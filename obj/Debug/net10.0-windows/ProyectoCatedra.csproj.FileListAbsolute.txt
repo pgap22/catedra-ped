@@ -19,3 +19,4 @@ C:\Users\Gerardo\udb\ProyectoCatedra\obj\Debug\net10.0-windows\refint\ProyectoCa
 C:\Users\Gerardo\udb\ProyectoCatedra\obj\Debug\net10.0-windows\ProyectoCatedra.pdb
 C:\Users\Gerardo\udb\ProyectoCatedra\obj\Debug\net10.0-windows\ProyectoCatedra.genruntimeconfig.cache
 C:\Users\Gerardo\udb\ProyectoCatedra\obj\Debug\net10.0-windows\ref\ProyectoCatedra.dll
+C:\Users\Gerardo\udb\ProyectoCatedra\obj\Debug\net10.0-windows\ProyectoCatedra.sourcelink.json

@@ -3,11 +3,13 @@ namespace ProyectoCatedra.Estructuras
     public class ListaEnlazada
     {
         private NodoLista? cabeza;
+        private NodoLista? cola;
         private int contador;
 
         public ListaEnlazada()
         {
             cabeza = null;
+            cola = null;
             contador = 0;
         }
 
@@ -17,15 +19,12 @@ namespace ProyectoCatedra.Estructuras
             if (cabeza == null)
             {
                 cabeza = nuevoNodo;
+                cola = nuevoNodo;
             }
             else
             {
-                NodoLista actual = cabeza;
-                while (actual.Siguiente != null)
-                {
-                    actual = actual.Siguiente;
-                }
-                actual.Siguiente = nuevoNodo;
+                cola!.Siguiente = nuevoNodo;
+                cola = nuevoNodo;
             }
             contador++;
         }
@@ -45,9 +44,67 @@ namespace ProyectoCatedra.Estructuras
 
         public int Conteo() => contador;
 
+        public bool EstaVacia() => contador == 0;
+
+        public bool EliminarPrimero(Predicate<object> criterio, out object? eliminado)
+        {
+            eliminado = null;
+            if (cabeza == null) return false;
+
+            NodoLista? anterior = null;
+            NodoLista? actual = cabeza;
+
+            while (actual != null)
+            {
+                if (criterio(actual.Valor))
+                {
+                    eliminado = actual.Valor;
+
+                    if (anterior == null)
+                    {
+                        cabeza = actual.Siguiente;
+                    }
+                    else
+                    {
+                        anterior.Siguiente = actual.Siguiente;
+                    }
+
+                    if (actual == cola)
+                    {
+                        cola = anterior;
+                    }
+
+                    contador--;
+                    if (contador == 0)
+                    {
+                        cabeza = null;
+                        cola = null;
+                    }
+
+                    return true;
+                }
+
+                anterior = actual;
+                actual = actual.Siguiente;
+            }
+
+            return false;
+        }
+
+        public void ParaCada(Action<object> accion)
+        {
+            NodoLista? actual = cabeza;
+            while (actual != null)
+            {
+                accion(actual.Valor);
+                actual = actual.Siguiente;
+            }
+        }
+
         public void Limpiar()
         {
             cabeza = null;
+            cola = null;
             contador = 0;
         }
     }

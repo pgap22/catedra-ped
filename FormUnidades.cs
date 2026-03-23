@@ -41,6 +41,7 @@ namespace ProyectoCatedra
 
         private void InicializarComponentes()
         {
+            this.AutoScaleMode = AutoScaleMode.None;
             this.Text = "Unidades de Medida y Categorías";
             this.Size = new Size(820, 560);
             this.StartPosition = FormStartPosition.CenterParent;
@@ -193,6 +194,16 @@ namespace ProyectoCatedra
 
             this.Controls.AddRange(new Control[] { gb1, gb2, dgvUnidades, dgvPivote, btnUndo, btnImp, btnPlantilla });
             cbCategorias.SelectedIndexChanged += (s, e) => CargarPivote();
+            AplicarEscaladoDpi();
+        }
+
+        private void AplicarEscaladoDpi()
+        {
+            float factor = DeviceDpi / 96f;
+            if (factor <= 1f) return;
+
+            this.Size = new Size((int)Math.Round(this.Width * factor), (int)Math.Round(this.Height * factor));
+            EscaladorDpi.EscalarJerarquia(this, factor);
         }
 
         private void Limpiar() { 
