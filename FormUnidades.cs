@@ -47,7 +47,7 @@ namespace ProyectoCatedra
             this.StartPosition = FormStartPosition.CenterParent;
 
             // Grupo 1: Crear Unidades (CRUD completo)
-            GroupBox gb1 = new GroupBox { Text = "1. CRUD Unidades de Medida", Location = new Point(20, 20), Size = new Size(370, 150) };
+            GroupBox gb1 = new GroupBox { Text = "1. Crear o Editar Unidades", Location = new Point(20, 20), Size = new Size(370, 150) };
             
             btnNuevo.Text = "Nuevo"; btnNuevo.Location = new Point(15, 25); btnNuevo.Size = new Size(60, 25);
             btnNuevo.Click += (s, e) => Limpiar();
@@ -102,7 +102,7 @@ namespace ProyectoCatedra
             gb1.Controls.AddRange(new Control[] { btnNuevo, lblNom, txtNombre, lblTip, cbTipo, btnGuardar, btnEditar, btnEliminar });
 
             // Grupo 2: Asociar a Categoria
-            GroupBox gb2 = new GroupBox { Text = "2. Asociar/Desasociar Categoría", Location = new Point(410, 20), Size = new Size(370, 150) };
+            GroupBox gb2 = new GroupBox { Text = "2. Asignar Unidad a una Categoría", Location = new Point(410, 20), Size = new Size(370, 150) };
             Label lblCat = new Label { Text = "Categoría:", Location = new Point(15, 30), AutoSize = true };
             cbCategorias.Location = new Point(15, 50); cbCategorias.Size = new Size(200, 20); cbCategorias.DropDownStyle = ComboBoxStyle.DropDownList;
             
@@ -127,8 +127,13 @@ namespace ProyectoCatedra
 
             gb2.Controls.AddRange(new Control[] { lblCat, cbCategorias, btnAsociar, btnQuitarAsociacion });
 
+            TextBox txtBuscar = new TextBox { Location = new Point(20, 185), Size = new Size(200, 20) };
+            Button btnBuscar = new Button { Text = "Buscar", Location = new Point(230, 183), Size = new Size(80, 25) };
+            btnBuscar.Click += (s, e) => CargarTodo(txtBuscar.Text);
+
             // DataGridViews
-            dgvUnidades.Location = new Point(20, 190); dgvUnidades.Size = new Size(370, 240); dgvUnidades.SelectionMode = DataGridViewSelectionMode.FullRowSelect; dgvUnidades.ReadOnly = true; dgvUnidades.AllowUserToAddRows = false; dgvUnidades.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvUnidades.Location = new Point(20, 220); dgvUnidades.Size = new Size(370, 210); dgvUnidades.SelectionMode = DataGridViewSelectionMode.FullRowSelect; dgvUnidades.ReadOnly = true; dgvUnidades.AllowUserToAddRows = false; dgvUnidades.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvUnidades.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
             dgvUnidades.Columns.Add("Id", "ID"); dgvUnidades.Columns.Add("Nom", "Nombre"); dgvUnidades.Columns.Add("T", "Tipo");
             dgvUnidades.SelectionChanged += (s, e) => {
                 if (dgvUnidades.SelectedRows.Count > 0) {
@@ -143,56 +148,23 @@ namespace ProyectoCatedra
                 }
             };
 
-            dgvPivote.Location = new Point(410, 190); dgvPivote.Size = new Size(370, 240); dgvPivote.SelectionMode = DataGridViewSelectionMode.FullRowSelect; dgvPivote.ReadOnly = true; dgvPivote.AllowUserToAddRows = false; dgvPivote.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvPivote.Location = new Point(410, 220); dgvPivote.Size = new Size(370, 210); dgvPivote.SelectionMode = DataGridViewSelectionMode.FullRowSelect; dgvPivote.ReadOnly = true; dgvPivote.AllowUserToAddRows = false; dgvPivote.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvPivote.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dgvPivote.Columns.Add("Cat", "Categoría"); dgvPivote.Columns.Add("Uni", "Unidad Permitida");
             dgvPivote.SelectionChanged += (s, e) => {
                 btnQuitarAsociacion.Enabled = dgvPivote.SelectedRows.Count > 0;
             };
 
             // Botones inferiores
-            btnUndo.Text = "Deshacer"; btnUndo.Location = new Point(20, 450); btnUndo.Size = new Size(100, 30);
-            btnUndo.Click += (s, e) => {
-                var acc = (AccionUndo?)undoStack.Pop();
-                if (acc == null) return;
-
-                if (acc.Tipo == TipoAccion.Importacion) {
-                    var l = (ListaEnlazada)acc.Datos;
-                    for (int i = 0; i < l.Conteo(); i++) {
-                        var uImp = (UnidadMedida?)l.Obtener(i);
-                        if (uImp != null) {
-                            var id = servicio.ObtenerIdPorNombre(uImp.Nombre);
-                            if (id != -1) servicio.EliminarUnidad(id);
-                        }
-                    }
-                } else {
-                    var u = (UnidadMedida)acc.Datos;
-                    if (acc.Tipo == TipoAccion.Insertar) {
-                        var id = servicio.ObtenerIdPorNombre(u.Nombre);
-                        if (id != -1) servicio.EliminarUnidad(id);
-                    } else if (acc.Tipo == TipoAccion.Editar) servicio.Actualizar(u);
-                    else if (acc.Tipo == TipoAccion.Eliminar) servicio.Guardar(u);
-                }
-                CargarTodo();
-            };
-
-            btnImp.Text = "Importar CSV"; btnImp.Location = new Point(130, 450); btnImp.Size = new Size(100, 30);
-            btnImp.Click += (s, e) => {
-                OpenFileDialog ofd = new OpenFileDialog();
-                if (ofd.ShowDialog() == DialogResult.OK) {
-                    var l = ManejadorCSV.ParsearUnidades(ofd.FileName);
-                    for (int i = 0; i < l.Conteo(); i++) {
-                        var u = (UnidadMedida?)l.Obtener(i);
-                        if (u != null) servicio.Guardar(u);
-                    }
-                    undoStack.Empujar(new AccionUndo(TipoAccion.Importacion, "Unidades", l));
-                    CargarTodo();
-                }
-            };
-
-            btnPlantilla.Text = "Bajar Plantilla"; btnPlantilla.Location = new Point(240, 450); btnPlantilla.Size = new Size(110, 30);
+            btnUndo.Text = "Deshacer último cambio manual"; btnUndo.Location = new Point(20, 450); btnUndo.Size = new Size(180, 30);
+            btnUndo.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            btnImp.Text = "Importar CSV"; btnImp.Location = new Point(210, 450); btnImp.Size = new Size(100, 30);
+            btnImp.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            btnPlantilla.Text = "Bajar Plantilla"; btnPlantilla.Location = new Point(320, 450); btnPlantilla.Size = new Size(110, 30);
+            btnPlantilla.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnPlantilla.Click += (s, e) => ManejadorCSV.GuardarPlantillaConDialogo("plantilla_unidades.csv", "Nombre,Tipo\nLibra,Peso (lb/kg)\nLitro,Volumen (lt/ml)\nBolsa,Unidad (pza/bolsa)");
 
-            this.Controls.AddRange(new Control[] { gb1, gb2, dgvUnidades, dgvPivote, btnUndo, btnImp, btnPlantilla });
+            this.Controls.AddRange(new Control[] { gb1, gb2, txtBuscar, btnBuscar, dgvUnidades, dgvPivote, btnUndo, btnImp, btnPlantilla });
             cbCategorias.SelectedIndexChanged += (s, e) => CargarPivote();
             AplicarEscaladoDpi();
         }
@@ -214,13 +186,19 @@ namespace ProyectoCatedra
             dgvUnidades.ClearSelection(); 
         }
 
-        private void CargarTodo()
+        private void CargarTodo(string filtro = "")
         {
             dgvUnidades.Rows.Clear();
             var l = servicio.ListarTodas();
+            filtro = filtro.Trim().ToLower();
+
             for (int i = 0; i < l.Conteo(); i++) { 
                 var u = (UnidadMedida?)l.Obtener(i); 
-                if (u != null) dgvUnidades.Rows.Add(u.Id, u.Nombre, u.Tipo); 
+                if (u != null) 
+                {
+                    if (!string.IsNullOrEmpty(filtro) && !u.Nombre.ToLower().Contains(filtro) && !u.Tipo.ToLower().Contains(filtro)) continue;
+                    dgvUnidades.Rows.Add(u.Id, u.Nombre, u.Tipo); 
+                }
             }
 
             cbCategorias.Items.Clear();

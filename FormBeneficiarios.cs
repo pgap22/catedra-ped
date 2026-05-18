@@ -36,6 +36,7 @@ namespace ProyectoCatedra
             this.AutoScaleMode = AutoScaleMode.None;
             this.Text = "Padrón de Beneficiarios";
             this.Size = new Size(650, 550);
+            this.MinimumSize = new Size(630, 500);
             this.StartPosition = FormStartPosition.CenterParent;
 
             btnNuevo.Text = "Nuevo"; btnNuevo.Location = new Point(20, 15); btnNuevo.Size = new Size(60, 25);
@@ -45,7 +46,7 @@ namespace ProyectoCatedra
             txtNombre.Location = new Point(20, 65); txtNombre.Size = new Size(180, 20);
 
             Label l2 = new Label { Text = "Miembros:", Location = new Point(210, 45), AutoSize = true };
-            numMiembros.Location = new Point(210, 65); numMiembros.Size = new Size(60, 20); numMiembros.Minimum = 1;
+            numMiembros.Location = new Point(210, 65); numMiembros.Size = new Size(60, 20); numMiembros.Minimum = 1; numMiembros.Maximum = 999;
 
             btnGuardar.Text = "Registrar"; btnGuardar.Location = new Point(280, 63); btnGuardar.Size = new Size(80, 25);
             btnGuardar.Click += (s, e) => { 
@@ -88,7 +89,8 @@ namespace ProyectoCatedra
                 Limpiar(); Cargar(); 
             };
 
-            btnUndo.Text = "Deshacer"; btnUndo.Location = new Point(20, 460); btnUndo.Size = new Size(100, 30);
+            btnUndo.Text = "Deshacer último cambio manual"; btnUndo.Location = new Point(20, 460); btnUndo.Size = new Size(180, 30);
+            btnUndo.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnUndo.Click += (s, e) => {
                 var acc = (AccionUndo?)undoStack.Pop();
                 if (acc == null) return;
@@ -118,13 +120,13 @@ namespace ProyectoCatedra
                 Cargar();
             };
 
-            GroupBox gb = new GroupBox { Text = "Búsqueda (BST Multi-Resultado)", Location = new Point(20, 100), Size = new Size(590, 60) };
+            GroupBox gb = new GroupBox { Text = "Buscar Beneficiario (por Nombre)", Location = new Point(20, 100), Size = new Size(590, 60) };
             txtBuscar.Location = new Point(15, 25); txtBuscar.Size = new Size(350, 20);
             btnBuscar.Text = "Buscar"; btnBuscar.Location = new Point(380, 23); btnBuscar.Size = new Size(140, 25);
             btnBuscar.Click += (s, e) => {
-                var resultados = servicio.CargarEnArbol().Buscar(txtBuscar.Text);
+                var resultados = servicio.CargarEnArbol().BuscarParcial(txtBuscar.Text);
                 dgv.Rows.Clear();
-                if (resultados != null) { 
+                if (resultados.Conteo() > 0) { 
                     for (int i = 0; i < resultados.Conteo(); i++) { 
                         var b = (Beneficiario?)resultados.Obtener(i); 
                         if (b != null) dgv.Rows.Add(b.Id, b.Nombre, b.MiembrosHogar); 
@@ -135,6 +137,7 @@ namespace ProyectoCatedra
             gb.Controls.AddRange(new Control[] { txtBuscar, btnBuscar });
 
             dgv.Location = new Point(20, 170); dgv.Size = new Size(590, 280); dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect; dgv.ReadOnly = true; dgv.AllowUserToAddRows = false; dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgv.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dgv.Columns.Add("Id", "ID"); dgv.Columns.Add("Nombre", "Nombre"); dgv.Columns.Add("M", "Miembros");
             dgv.SelectionChanged += (s, e) => {
                 if (dgv.SelectedRows.Count > 0) {
@@ -148,7 +151,8 @@ namespace ProyectoCatedra
                 }
             };
 
-            Button btnImp = new Button { Text = "Importar CSV", Location = new Point(130, 460), Size = new Size(100, 30) };
+            Button btnImp = new Button { Text = "Importar CSV", Location = new Point(210, 460), Size = new Size(100, 30) };
+            btnImp.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnImp.Click += (s, e) => {
                 OpenFileDialog ofd = new OpenFileDialog();
                 if (ofd.ShowDialog() == DialogResult.OK) {
@@ -171,7 +175,8 @@ namespace ProyectoCatedra
                 }
             };
 
-            Button btnPlantilla = new Button { Text = "Bajar Plantilla", Location = new Point(240, 460), Size = new Size(110, 30) };
+            Button btnPlantilla = new Button { Text = "Bajar Plantilla", Location = new Point(320, 460), Size = new Size(110, 30) };
+            btnPlantilla.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnPlantilla.Click += (s, e) => ManejadorCSV.GuardarPlantillaConDialogo("plantilla_beneficiarios.csv", "Nombre,Miembros\nJuan Perez,5\nMaria Lopez,3");
 
             this.Controls.AddRange(new Control[] { btnNuevo, l1, txtNombre, l2, numMiembros, btnGuardar, btnEditar, btnEliminar, gb, dgv, btnUndo, btnImp, btnPlantilla });

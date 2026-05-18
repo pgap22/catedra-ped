@@ -136,7 +136,8 @@ namespace ProyectoCatedra.Servicios
                             Id = Convert.ToInt32(lector["Id"]),
                             Nombre = lector["Nombre"]?.ToString() ?? string.Empty,
                             MiembrosHogar = Convert.ToInt32(lector["MiembrosHogar"]),
-                            Activo = Convert.ToInt32(lector["Activo"]) == 1
+                            Activo = Convert.ToInt32(lector["Activo"]) == 1,
+                            FechaRegistro = lector["FechaRegistro"] != DBNull.Value ? Convert.ToDateTime(lector["FechaRegistro"]) : DateTime.Now
                         };
 
                         AgregarEnIndices(beneficiario);

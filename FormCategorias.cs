@@ -31,7 +31,7 @@ namespace ProyectoCatedra
         private void InicializarComponentes()
         {
             this.AutoScaleMode = AutoScaleMode.None;
-            this.Text = "CRUD Categorías (Con Undo)";
+            this.Text = "Gestión de Categorías";
             this.Size = new Size(550, 480);
             this.StartPosition = FormStartPosition.CenterParent;
 
@@ -68,7 +68,7 @@ namespace ProyectoCatedra
                 Cargar(); Limpiar();
             };
 
-            btnUndo.Text = "Deshacer"; btnUndo.Location = new Point(20, 360); btnUndo.Size = new Size(100, 30);
+            btnUndo.Text = "Deshacer último cambio manual"; btnUndo.Location = new Point(20, 360); btnUndo.Size = new Size(180, 30);
             btnUndo.Click += (s, e) => {
                 var acc = (AccionUndo?)undoStack.Pop();
                 if (acc == null) return;
@@ -93,7 +93,8 @@ namespace ProyectoCatedra
                 Cargar();
             };
 
-            dgv.Location = new Point(20, 100); dgv.Size = new Size(490, 240); dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect; dgv.ReadOnly = true; dgv.AllowUserToAddRows = false; dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgv.Location = new Point(20, 140); dgv.Size = new Size(490, 200); dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect; dgv.ReadOnly = true; dgv.AllowUserToAddRows = false; dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgv.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dgv.Columns.Add("Id", "ID"); dgv.Columns.Add("Nom", "Nombre");
             dgv.SelectionChanged += (s, e) => {
                 if (dgv.SelectedRows.Count > 0) {
@@ -105,7 +106,13 @@ namespace ProyectoCatedra
                 }
             };
 
-            Button btnImp = new Button { Text = "Importar CSV", Location = new Point(130, 360), Size = new Size(100, 30) };
+            TextBox txtBuscar = new TextBox { Location = new Point(20, 105), Size = new Size(250, 20) };
+            Button btnBuscar = new Button { Text = "Buscar", Location = new Point(280, 103), Size = new Size(80, 25) };
+            btnBuscar.Click += (s, e) => Cargar(txtBuscar.Text);
+
+            btnUndo.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+
+            Button btnImp = new Button { Text = "Importar CSV", Location = new Point(210, 360), Size = new Size(100, 30) };
             btnImp.Click += (s, e) => {
                 try {
                     OpenFileDialog ofd = new OpenFileDialog();
@@ -142,10 +149,10 @@ namespace ProyectoCatedra
                 } catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
             };
 
-            Button btnPlantilla = new Button { Text = "Bajar Plantilla", Location = new Point(240, 360), Size = new Size(110, 30) };
+            Button btnPlantilla = new Button { Text = "Bajar Plantilla", Location = new Point(320, 360), Size = new Size(110, 30) };
             btnPlantilla.Click += (s, e) => ManejadorCSV.GuardarPlantillaConDialogo("plantilla_categorias.csv", "Nombre\nGranos Basicos\nLacteos\nAceites");
 
-            this.Controls.AddRange(new Control[] { btnNuevo, lbl, txtNombre, btnGuardar, btnEditar, btnEliminar, btnUndo, dgv, btnImp, btnPlantilla });
+            this.Controls.AddRange(new Control[] { btnNuevo, lbl, txtNombre, btnGuardar, btnEditar, btnEliminar, txtBuscar, btnBuscar, btnUndo, dgv, btnImp, btnPlantilla });
             AplicarEscaladoDpi();
         }
 
@@ -159,6 +166,21 @@ namespace ProyectoCatedra
         }
 
         private void Limpiar() { txtNombre.Clear(); seleccionado = null; btnEditar.Enabled = btnEliminar.Enabled = false; dgv.ClearSelection(); }
-        private void Cargar() { dgv.Rows.Clear(); var l = servicio.ListarTodas(); for (int i = 0; i < l.Conteo(); i++) { var c = (Categoria?)l.Obtener(i); if (c != null) dgv.Rows.Add(c.Id, c.Nombre); } }
+        private void Cargar(string filtro = "") 
+        { 
+            dgv.Rows.Clear(); 
+            var l = servicio.ListarTodas(); 
+            filtro = filtro.Trim().ToLower();
+
+            for (int i = 0; i < l.Conteo(); i++) 
+            { 
+                var c = (Categoria?)l.Obtener(i); 
+                if (c != null) 
+                {
+                    if (!string.IsNullOrEmpty(filtro) && !c.Nombre.ToLower().Contains(filtro)) continue;
+                    dgv.Rows.Add(c.Id, c.Nombre); 
+                }
+            } 
+        }
     }
 }

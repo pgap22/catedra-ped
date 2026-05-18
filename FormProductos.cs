@@ -38,171 +38,258 @@ namespace ProyectoCatedra
             this.AutoScaleMode = AutoScaleMode.None;
             this.Text = "Inventario de Productos";
             this.Size = new Size(800, 520);
+            this.MinimumSize = new Size(760, 480);
             this.StartPosition = FormStartPosition.CenterParent;
 
-            btnNuevo.Text = "Nuevo (Auto-SKU)"; btnNuevo.Location = new Point(20, 15); btnNuevo.Size = new Size(120, 25);
-            btnNuevo.Click += (s, e) => GenerarNuevoSKU();
+            btnNuevo.Text = "Nuevo Producto"; btnNuevo.Location = new Point(20, 15); btnNuevo.Size = new Size(120, 25);
+            btnNuevo.Click += (s, e) => Limpiar();
 
             Label l1 = new Label { Text = "SKU:", Location = new Point(20, 45), AutoSize = true };
-            txtSKU.Location = new Point(20, 65); txtSKU.Size = new Size(80, 20);
+            txtSKU.Location = new Point(20, 65); txtSKU.Size = new Size(80, 20); txtSKU.ReadOnly = true; txtSKU.Text = "(Auto-generado)";
             Label l2 = new Label { Text = "Nombre:", Location = new Point(110, 45), AutoSize = true };
             txtNombre.Location = new Point(110, 65); txtNombre.Size = new Size(150, 20);
             Label l3 = new Label { Text = "Categoría:", Location = new Point(270, 45), AutoSize = true };
             cbCat.Location = new Point(270, 65); cbCat.Size = new Size(120, 20); cbCat.DropDownStyle = ComboBoxStyle.DropDownList;
             Label l4 = new Label { Text = "Stock:", Location = new Point(400, 45), AutoSize = true };
-            numStock.Location = new Point(400, 65); numStock.Size = new Size(60, 20);
+            numStock.Location = new Point(400, 65); numStock.Size = new Size(100, 20);
+            numStock.Maximum = decimal.MaxValue;
+            numStock.DecimalPlaces = 2;
 
             btnGuardar.Text = "Guardar"; btnGuardar.Location = new Point(470, 63); btnGuardar.Size = new Size(80, 25);
             btnGuardar.Click += (s, e) =>
             {
-                if (cbCat.SelectedItem == null || string.IsNullOrWhiteSpace(txtNombre.Text)) return;
-
-                string nombreNuevo = txtNombre.Text.Trim();
-                int idCategoria = ((Categoria)cbCat.SelectedItem).Id;
-                double stockNuevo = (double)numStock.Value;
-
-                if (productoSeleccionado != null)
+                if (cbCat.SelectedItem == null || string.IsNullOrWhiteSpace(txtNombre.Text))
                 {
-                    Producto anterior = CopiarProducto(productoSeleccionado);
-                    productoSeleccionado.Nombre = nombreNuevo;
-                    productoSeleccionado.IdCategoria = idCategoria;
-                    productoSeleccionado.Stock = stockNuevo;
-
-                    servicio.Actualizar(productoSeleccionado);
-                    undoStack.Empujar(new AccionUndo(TipoAccion.Editar, "Productos", anterior));
+                    MessageBox.Show("Complete nombre y seleccione una categoría.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
                 }
-                else
+
+                try
                 {
-                    if (string.IsNullOrWhiteSpace(txtSKU.Text)) txtSKU.Text = ObtenerSiguienteSKU();
+                    string nombreNuevo = txtNombre.Text.Trim();
+                    int idCategoria = ((Categoria)cbCat.SelectedItem).Id;
+                    double stockNuevo = (double)numStock.Value;
 
-                    string skuIngresado = txtSKU.Text.Trim();
-                    Producto? existenteSku = (Producto?)servicio.CargarEnHash().Buscar(skuIngresado);
-
-                    if (existenteSku != null)
+                    if (productoSeleccionado != null)
                     {
-                        bool mismoNombre = SonIguales(existenteSku.Nombre, nombreNuevo);
-                        bool mismaCategoria = existenteSku.IdCategoria == idCategoria;
+                        Producto anterior = CopiarProducto(productoSeleccionado);
+                        productoSeleccionado.Nombre = nombreNuevo;
+                        productoSeleccionado.IdCategoria = idCategoria;
+                        productoSeleccionado.Stock = stockNuevo;
 
-                        if (mismoNombre && mismaCategoria)
-                        {
-                            Producto anterior = CopiarProducto(existenteSku);
-                            Producto suma = new Producto
-                            {
-                                SKU = existenteSku.SKU,
-                                Nombre = existenteSku.Nombre,
-                                IdCategoria = existenteSku.IdCategoria,
-                                Stock = stockNuevo
-                            };
-                            servicio.GuardarOSumarStock(suma);
-                            undoStack.Empujar(new AccionUndo(TipoAccion.Editar, "Productos", anterior));
-                            MessageBox.Show("Coincidio SKU, nombre y categoria. Se sumo stock al producto existente.", "Stock acumulado", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
-                        else
-                        {
-                            string skuNuevo = ObtenerSiguienteSKU();
-                            var pNuevo = new Producto { SKU = skuNuevo, Nombre = nombreNuevo, IdCategoria = idCategoria, Stock = stockNuevo };
-                            servicio.GuardarOSumarStock(pNuevo);
-                            undoStack.Empujar(new AccionUndo(TipoAccion.Insertar, "Productos", pNuevo));
-                            MessageBox.Show("El SKU ya estaba en uso con otro nombre o categoria. Se genero un SKU nuevo para crear otro producto.", "SKU reasignado", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
+                        servicio.Actualizar(productoSeleccionado);
+                        undoStack.Empujar(new AccionUndo(TipoAccion.Editar, "Productos", anterior));
                     }
                     else
                     {
-                        var p = new Producto { SKU = skuIngresado, Nombre = nombreNuevo, IdCategoria = idCategoria, Stock = stockNuevo };
-                        servicio.GuardarOSumarStock(p);
-                        undoStack.Empujar(new AccionUndo(TipoAccion.Insertar, "Productos", p));
-                    }
-                }
+                        if (string.IsNullOrWhiteSpace(txtSKU.Text) || txtSKU.Text == "(Auto-generado)") txtSKU.Text = ObtenerSiguienteSKU();
 
-                Limpiar(); Cargar();
+                        string skuIngresado = txtSKU.Text.Trim();
+                        Producto? existenteSku = (Producto?)servicio.CargarEnHash().Buscar(skuIngresado);
+
+                        if (existenteSku != null)
+                        {
+                            bool mismoNombre = SonIguales(existenteSku.Nombre, nombreNuevo);
+                            bool mismaCategoria = existenteSku.IdCategoria == idCategoria;
+
+                            if (mismoNombre && mismaCategoria)
+                            {
+                                Producto anterior = CopiarProducto(existenteSku);
+                                Producto suma = new Producto
+                                {
+                                    SKU = existenteSku.SKU,
+                                    Nombre = existenteSku.Nombre,
+                                    IdCategoria = existenteSku.IdCategoria,
+                                    Stock = stockNuevo
+                                };
+                                servicio.GuardarOSumarStock(suma);
+                                undoStack.Empujar(new AccionUndo(TipoAccion.Editar, "Productos", anterior));
+                                MessageBox.Show("Coincidió SKU, nombre y categoría. Se sumó stock al producto existente.", "Stock acumulado", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            }
+                            else
+                            {
+                                string skuNuevo = ObtenerSiguienteSKU();
+                                var pNuevo = new Producto { SKU = skuNuevo, Nombre = nombreNuevo, IdCategoria = idCategoria, Stock = stockNuevo };
+                                servicio.GuardarOSumarStock(pNuevo);
+                                undoStack.Empujar(new AccionUndo(TipoAccion.Insertar, "Productos", pNuevo));
+                                MessageBox.Show("El SKU ya estaba en uso. Se generó un SKU nuevo.", "SKU reasignado", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            }
+                        }
+                        else
+                        {
+                            var p = new Producto { SKU = skuIngresado, Nombre = nombreNuevo, IdCategoria = idCategoria, Stock = stockNuevo };
+                            servicio.GuardarOSumarStock(p);
+                            undoStack.Empujar(new AccionUndo(TipoAccion.Insertar, "Productos", p));
+                        }
+                    }
+
+                    Limpiar(); Cargar();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Ocurrió un error al guardar: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             };
 
+            TextBox txtBuscar = new TextBox { Location = new Point(20, 105), Size = new Size(250, 20) };
+            Button btnBuscar = new Button { Text = "Buscar", Location = new Point(280, 103), Size = new Size(80, 25) };
+            btnBuscar.Click += (s, e) => Cargar(txtBuscar.Text);
+            
             btnEliminar.Text = "Eliminar"; btnEliminar.Location = new Point(560, 63); btnEliminar.Size = new Size(80, 25); btnEliminar.Enabled = false;
             btnEliminar.Click += (s, e) =>
             {
                 if (productoSeleccionado == null) return;
-
-                Producto anterior = CopiarProducto(productoSeleccionado);
-                undoStack.Empujar(new AccionUndo(TipoAccion.Eliminar, "Productos", anterior));
-                servicio.Eliminar(productoSeleccionado.SKU);
-                Limpiar(); Cargar(); 
-            };
-
-            btnUndo.Text = "Deshacer"; btnUndo.Location = new Point(20, 430); btnUndo.Size = new Size(100, 30);
-            btnUndo.Click += (s, e) =>
-            {
-                var acc = (AccionUndo?)undoStack.Pop();
-                if (acc == null) return;
                 
-                if (acc.Tipo == TipoAccion.Importacion)
-                {
-                    var l = (ListaEnlazada)acc.Datos;
-                    for (int i = 0; i < l.Conteo(); i++)
-                    {
-                        var pImp = (Producto?)l.Obtener(i);
-                        if (pImp != null) servicio.Eliminar(pImp.SKU);
-                    }
-                }
-                else 
-                {
-                    var p = (Producto)acc.Datos;
-                    if (acc.Tipo == TipoAccion.Insertar) servicio.Eliminar(p.SKU);
-                    else if (acc.Tipo == TipoAccion.Eliminar) servicio.GuardarOSumarStock(p);
-                    else if (acc.Tipo == TipoAccion.Editar) servicio.Actualizar(p);
-                }
-                Cargar();
-            };
-
-            dgv.Location = new Point(20, 100); dgv.Size = new Size(740, 310); dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect; dgv.ReadOnly = true; dgv.AllowUserToAddRows = false; dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            dgv.Columns.Add("SKU", "SKU"); dgv.Columns.Add("Nom", "Nombre"); dgv.Columns.Add("Cat", "Categoría"); dgv.Columns.Add("Stock", "Stock");
-            dgv.SelectionChanged += (s, e) =>
-            {
-                if (dgv.SelectedRows.Count == 0) return;
-
-                string sku = dgv.SelectedRows[0].Cells[0].Value?.ToString() ?? "";
-                if (string.IsNullOrWhiteSpace(sku)) return;
-
-                Producto? p = (Producto?)servicio.CargarEnHash().Buscar(sku);
-                if (p == null) return;
-
-                productoSeleccionado = p;
-                txtSKU.Text = p.SKU;
-                txtNombre.Text = p.Nombre;
-                numStock.Value = Convert.ToDecimal(p.Stock);
-                SeleccionarCategoriaPorId(p.IdCategoria);
-
-                btnEliminar.Enabled = true;
-                btnGuardar.Text = "Actualizar";
-            };
-
-            Button btnImp = new Button { Text = "Importar CSV", Location = new Point(130, 430), Size = new Size(100, 30) };
-            btnImp.Click += (s, e) =>
-            {
                 try
                 {
-                    OpenFileDialog ofd = new OpenFileDialog();
-                    if (ofd.ShowDialog() == DialogResult.OK)
-                    {
-                        var l = ManejadorCSV.ParsearProductos(ofd.FileName);
-                        ListaEnlazada importados = new ListaEnlazada();
-                        for (int i = 0; i < l.Conteo(); i++)
-                        {
-                            var p = (Producto?)l.Obtener(i);
-                            if (p == null) continue;
-                            int cid = catServicio.ObtenerIdPorNombre(p.NombreCategoria);
-                            if (cid != -1) { p.IdCategoria = cid; servicio.GuardarOSumarStock(p); importados.Agregar(p); }
-                        }
-                        undoStack.Empujar(new AccionUndo(TipoAccion.Importacion, "Productos", importados));
-                        Cargar();
-                    }
+                    Producto anterior = CopiarProducto(productoSeleccionado);
+                    undoStack.Empujar(new AccionUndo(TipoAccion.Eliminar, "Productos", anterior));
+                    servicio.Eliminar(productoSeleccionado.SKU);
+                    Limpiar(); Cargar();
                 }
-                catch (Exception ex) { MessageBox.Show("Error: " + ex.Message); }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Ocurrió un error al eliminar: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             };
 
-            Button btnPlantilla = new Button { Text = "Bajar Plantilla", Location = new Point(240, 430), Size = new Size(110, 30) };
+            dgv.Location = new Point(20, 140);
+            dgv.Size = new Size(740, 270);
+            dgv.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            dgv.AllowUserToAddRows = false;
+            dgv.ReadOnly = true;
+            dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgv.MultiSelect = false;
+            dgv.Columns.Add("SKU", "SKU");
+            dgv.Columns.Add("Nombre", "Nombre");
+            dgv.Columns.Add("Categoria", "Categoría");
+            dgv.Columns.Add("Stock", "Stock");
+            dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgv.CellClick += (s, e) => {
+                if (e.RowIndex >= 0) {
+                    var row = dgv.Rows[e.RowIndex];
+                    string sku = row.Cells[0].Value?.ToString() ?? "";
+                    var producto = (Producto?)servicio.CargarEnHash().Buscar(sku);
+                    if (producto != null) {
+                        productoSeleccionado = producto;
+                        txtSKU.Text = producto.SKU;
+                        txtNombre.Text = producto.Nombre;
+                        SeleccionarCategoriaPorId(producto.IdCategoria);
+                        numStock.Value = (decimal)producto.Stock;
+                        btnGuardar.Text = "Guardar";
+                        btnEliminar.Enabled = true;
+                    }
+                }
+            };
+
+            btnUndo.Text = "Deshacer último cambio manual"; btnUndo.Location = new Point(20, 430); btnUndo.Size = new Size(180, 30);
+            btnUndo.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            btnUndo.Click += (s, e) => 
+            {
+                if (undoStack.EstaVacia())
+                {
+                    MessageBox.Show("No hay cambios para deshacer.", "Deshacer", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                try
+                {
+                    AccionUndo accion = (AccionUndo)undoStack.Pop()!;
+                    if (accion.Tipo == TipoAccion.Insertar)
+                    {
+                        Producto p = (Producto)accion.Datos;
+                        servicio.Eliminar(p.SKU);
+                    }
+                    else if (accion.Tipo == TipoAccion.Editar)
+                    {
+                        Producto p = (Producto)accion.Datos;
+                        servicio.Actualizar(p);
+                    }
+                    else if (accion.Tipo == TipoAccion.Eliminar)
+                    {
+                        Producto p = (Producto)accion.Datos;
+                        servicio.GuardarOSumarStock(p);
+                    }
+                    else if (accion.Tipo == TipoAccion.Importacion)
+                    {
+                        ListaEnlazada importados = (ListaEnlazada)accion.Datos;
+                        for (int i = 0; i < importados.Conteo(); i++)
+                        {
+                            Producto p = (Producto)importados.Obtener(i)!;
+                            servicio.Eliminar(p.SKU);
+                        }
+                    }
+                    Limpiar(); Cargar();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Ocurrió un error al deshacer: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+
+            Button btnImp = new Button { Text = "Importar CSV", Location = new Point(210, 430), Size = new Size(100, 30) };
+            btnImp.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            btnImp.Click += (s, e) => 
+            {
+                OpenFileDialog ofd = new OpenFileDialog { Filter = "Archivo CSV (*.csv)|*.csv" };
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        ListaEnlazada productosCsv = ManejadorCSV.ParsearProductos(ofd.FileName);
+                        TablaHash hashActuales = servicio.CargarEnHash();
+                        ListaEnlazada insertados = new ListaEnlazada();
+                        int omitidos = 0;
+
+                        for (int i = 0; i < productosCsv.Conteo(); i++)
+                        {
+                            Producto p = (Producto)productosCsv.Obtener(i)!;
+                            
+                            if (string.IsNullOrWhiteSpace(p.SKU) || string.IsNullOrWhiteSpace(p.Nombre) || p.Stock < 0)
+                            {
+                                omitidos++;
+                                continue;
+                            }
+
+                            int idCat = catServicio.ObtenerIdPorNombre(p.NombreCategoria);
+                            if (idCat == -1)
+                            {
+                                omitidos++;
+                                continue;
+                            }
+                            
+                            p.IdCategoria = idCat;
+
+                            if (hashActuales.Buscar(p.SKU) != null)
+                            {
+                                omitidos++;
+                                continue;
+                            }
+
+                            servicio.GuardarOSumarStock(p);
+                            insertados.Agregar(p);
+                            hashActuales.Insertar(p.SKU, p);
+                        }
+
+                        if (insertados.Conteo() > 0)
+                        {
+                            undoStack.Empujar(new AccionUndo(TipoAccion.Importacion, "Productos", insertados));
+                        }
+
+                        MessageBox.Show($"Importación finalizada.\nInsertados: {insertados.Conteo()}\nOmitidos/Duplicados o inválidos: {omitidos}", "Importar", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        Limpiar(); Cargar();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error al importar: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            };
+            Button btnPlantilla = new Button { Text = "Bajar Plantilla", Location = new Point(320, 430), Size = new Size(110, 30) };
+            btnPlantilla.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnPlantilla.Click += (s, e) => ManejadorCSV.GuardarPlantillaConDialogo("plantilla_productos.csv", "SKU,Nombre,NombreCategoria,Stock\nSKU001,Arroz,Granos Basicos,50\nSKU002,Leche,Lacteos,100");
 
-            this.Controls.AddRange(new Control[] { btnNuevo, l1, txtSKU, l2, txtNombre, l3, cbCat, l4, numStock, btnGuardar, btnEliminar, btnUndo, dgv, btnImp, btnPlantilla });
+            this.Controls.AddRange(new Control[] { btnNuevo, l1, txtSKU, l2, txtNombre, l3, cbCat, l4, numStock, btnGuardar, btnEliminar, txtBuscar, btnBuscar, btnUndo, dgv, btnImp, btnPlantilla });
             AplicarEscaladoDpi();
         }
 
@@ -218,15 +305,34 @@ namespace ProyectoCatedra
         private void GenerarNuevoSKU()
         {
             Limpiar();
-            txtSKU.Text = ObtenerSiguienteSKU();
         }
 
         private void CargarCats() { cbCat.Items.Clear(); var l = catServicio.ListarTodas(); for (int i = 0; i < l.Conteo(); i++) { var c = l.Obtener(i); if (c != null) cbCat.Items.Add(c); } }
-        private void Cargar() { dgv.Rows.Clear(); var l = servicio.ListarTodos(); for (int i = 0; i < l.Conteo(); i++) { var p = (Producto?)l.Obtener(i); if (p != null) dgv.Rows.Add(p.SKU, p.Nombre, p.NombreCategoria, p.Stock); } }
+        private void Cargar(string filtro = "") 
+        { 
+            dgv.Rows.Clear(); 
+            var l = servicio.ListarTodos(); 
+            filtro = filtro.Trim().ToLower();
+
+            for (int i = 0; i < l.Conteo(); i++) 
+            { 
+                var p = (Producto?)l.Obtener(i); 
+                if (p != null) 
+                {
+                    if (!string.IsNullOrEmpty(filtro) && !p.Nombre.ToLower().Contains(filtro) && !p.SKU.ToLower().Contains(filtro)) continue;
+
+                    int index = dgv.Rows.Add(p.SKU, p.Nombre, p.NombreCategoria, p.Stock); 
+                    if (p.Stock <= 5)
+                    {
+                        dgv.Rows[index].DefaultCellStyle.BackColor = Color.LightCoral;
+                    }
+                } 
+            } 
+        }
         private void Limpiar()
         {
             productoSeleccionado = null;
-            txtSKU.Clear();
+            txtSKU.Text = "(Auto-generado)";
             txtNombre.Clear();
             numStock.Value = 0;
             cbCat.SelectedIndex = -1;

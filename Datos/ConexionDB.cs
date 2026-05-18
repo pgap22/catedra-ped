@@ -13,6 +13,7 @@ namespace ProyectoCatedra.Datos
         {
             cadenaConexion = $"Data Source={nombreBD};Version=3;";
             InicializarBD();
+            ActualizarEsquema();
         }
 
         private void InicializarBD()
@@ -20,30 +21,23 @@ namespace ProyectoCatedra.Datos
             if (!File.Exists(nombreBD))
             {
                 SQLiteConnection.CreateFile(nombreBD);
-                using (var conexion = new SQLiteConnection(cadenaConexion))
+                using (var conexion = ObtenerConexion())
                 {
                     conexion.Open();
                     
-                    // Categorías
-                    string sqlCat = "CREATE TABLE Categorias (Id INTEGER PRIMARY KEY AUTOINCREMENT, Nombre TEXT NOT NULL);";
-                    
-                    // Unidades de Medida
-                    string sqlUni = "CREATE TABLE UnidadesMedida (Id INTEGER PRIMARY KEY AUTOINCREMENT, Nombre TEXT NOT NULL, Tipo TEXT NOT NULL);";
-
-                    // Pivote Categoria - Unidades Validas
-                    string sqlPiv = "CREATE TABLE CategoriaUnidades (IdCategoria INTEGER, IdUnidad INTEGER, PRIMARY KEY(IdCategoria, IdUnidad));";
-
-                    // Beneficiarios
-                    string sqlBen = "CREATE TABLE Beneficiarios (Id INTEGER PRIMARY KEY AUTOINCREMENT, Nombre TEXT NOT NULL, MiembrosHogar INTEGER DEFAULT 1, Activo INTEGER DEFAULT 1);";
-
-                    // Productos
-                    string sqlProd = @"CREATE TABLE Productos (
+                    string sqlCat = "CREATE TABLE IF NOT EXISTS Categorias (Id INTEGER PRIMARY KEY AUTOINCREMENT, Nombre TEXT NOT NULL);";
+                    string sqlUni = "CREATE TABLE IF NOT EXISTS UnidadesMedida (Id INTEGER PRIMARY KEY AUTOINCREMENT, Nombre TEXT NOT NULL, Tipo TEXT NOT NULL);";
+                    string sqlPiv = "CREATE TABLE IF NOT EXISTS CategoriaUnidades (IdCategoria INTEGER, IdUnidad INTEGER, PRIMARY KEY(IdCategoria, IdUnidad));";
+                    string sqlBen = "CREATE TABLE IF NOT EXISTS Beneficiarios (Id INTEGER PRIMARY KEY AUTOINCREMENT, Nombre TEXT NOT NULL, MiembrosHogar INTEGER DEFAULT 1, Activo INTEGER DEFAULT 1, FechaRegistro DATETIME DEFAULT CURRENT_TIMESTAMP);";
+                    string sqlProd = @"CREATE TABLE IF NOT EXISTS Productos (
                                             Id INTEGER PRIMARY KEY AUTOINCREMENT,
                                             SKU TEXT UNIQUE NOT NULL,
                                             Nombre TEXT NOT NULL,
                                             IdCategoria INTEGER,
                                             Stock REAL DEFAULT 0,
-                                            FOREIGN KEY(IdCategoria) REFERENCES Categorias(Id)
+                                            IdUnidad INTEGER,
+                                            FOREIGN KEY(IdCategoria) REFERENCES Categorias(Id),
+                                            FOREIGN KEY(IdUnidad) REFERENCES UnidadesMedida(Id)
                                           );";
 
                     using (var cmd = new SQLiteCommand(sqlCat, conexion)) cmd.ExecuteNonQuery();
@@ -55,6 +49,61 @@ namespace ProyectoCatedra.Datos
             }
         }
 
-        public SQLiteConnection ObtenerConexion() => new SQLiteConnection(cadenaConexion);
+        private void ActualizarEsquema()
+        {
+            using (var conexion = ObtenerConexion())
+            {
+                conexion.Open();
+
+                // Intentar añadir columnas a tablas antiguas si la BD ya existía
+                try { new SQLiteCommand("ALTER TABLE Beneficiarios ADD COLUMN FechaRegistro DATETIME DEFAULT CURRENT_TIMESTAMP;", conexion).ExecuteNonQuery(); } catch { /* Ya existe */ }
+                try { new SQLiteCommand("ALTER TABLE Productos ADD COLUMN IdUnidad INTEGER REFERENCES UnidadesMedida(Id);", conexion).ExecuteNonQuery(); } catch { /* Ya existe */ }
+
+                // Crear nuevas tablas para la Fase 1
+                string sqlTasa = @"CREATE TABLE IF NOT EXISTS TasaConsumo (
+                                      IdCategoria INTEGER PRIMARY KEY, 
+                                      TasaDiaria REAL NOT NULL, 
+                                      IdUnidadBase INTEGER,
+                                      FOREIGN KEY(IdCategoria) REFERENCES Categorias(Id),
+                                      FOREIGN KEY(IdUnidadBase) REFERENCES UnidadesMedida(Id)
+                                   );";
+                string sqlOrden = @"CREATE TABLE IF NOT EXISTS Orden (
+                                       Id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                                       FechaGeneracion DATETIME DEFAULT CURRENT_TIMESTAMP, 
+                                       Estado TEXT NOT NULL, 
+                                       Observaciones TEXT
+                                    );";
+                string sqlDetalle = @"CREATE TABLE IF NOT EXISTS OrdenDetalle (
+                                         Id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                                         OrdenId INTEGER, 
+                                         BeneficiarioId INTEGER, 
+                                         CategoriaId INTEGER, 
+                                         CantidadAsignada REAL NOT NULL, 
+                                         DeficitCalculado REAL,
+                                         FOREIGN KEY(OrdenId) REFERENCES Orden(Id),
+                                         FOREIGN KEY(BeneficiarioId) REFERENCES Beneficiarios(Id),
+                                         FOREIGN KEY(CategoriaId) REFERENCES Categorias(Id)
+                                      );";
+
+                using (var cmd = new SQLiteCommand(sqlTasa, conexion)) cmd.ExecuteNonQuery();
+                using (var cmd = new SQLiteCommand(sqlOrden, conexion)) cmd.ExecuteNonQuery();
+                using (var cmd = new SQLiteCommand(sqlDetalle, conexion)) cmd.ExecuteNonQuery();
+            }
+        }
+
+        public SQLiteConnection ObtenerConexion()
+        {
+            var conexion = new SQLiteConnection(cadenaConexion);
+            conexion.StateChange += (s, e) => {
+                if (conexion.State == System.Data.ConnectionState.Open)
+                {
+                    using (var cmd = new SQLiteCommand("PRAGMA foreign_keys = ON;", conexion))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            };
+            return conexion;
+        }
     }
 }

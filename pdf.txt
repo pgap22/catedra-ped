@@ -1,0 +1,562 @@
+UNIVERSIDAD DON BOSCO FACULTAD DE INGENIERÍA
+PROGRAMACIÓN CON ESTRUCTURAS DE DATOS — PED104
+
+Sistema de Gestión de Donaciones para Organizaciones Sociales Proyecto de Cátedra — Segunda Entrega (10%)
+
+Docente: Ing. Carmen Celia Morales Samayoa
+
+Integrantes del equipo (orden alfabético):
+
+Carné
+Nombre completo
+BC221567
+Fernando Alberto Barahona Castro
+BS242634
+Gerardo Rafael Bonilla Saz
+GC242649
+Christian Levi González Castro
+LM242664
+José Adrián López Medina
+MV242667
+Carlos Eduardo Merino Ventura
+
+
+Ciclo 01-2026 | Grupos teóricos 02 y 03 | Soyapango, _____ de 2026
+
+Índice
+
+
+1. Introducción	4
+2. Objetivos	5
+Objetivo General	5
+Objetivos Específicos	5
+3. Alcance y Justificación	6
+Alcance del Sistema	6
+Justificación	7
+4. Descripción del Sistema y Módulos	7
+Módulo 1 — Catálogos	7
+Módulo 2 — Unidades de Medida	7
+Módulo 3 — Inventario (Productos)	8
+Módulo 4 — Beneficiarios	8
+Módulo 5 — Órdenes y Solicitudes	8
+Módulo 6 — Distribución	8
+Módulo 7 — Historial y Reportes	9
+5. Lógica de Solución — Algoritmo de Distribución	10
+5.1 El problema que resuelve	10
+5.2 El concepto de Déficit por Categoría	10
+5.3 El algoritmo paso a paso	11
+5.4 Criterios de desempate	11
+6. Estructuras de Datos Implementadas	12
+Tabla Hash (TablaHash.cs)	12
+6.1 Montículo Máximo (MonticuloMaximo.cs)	13
+6.2 Árbol Binario de Búsqueda (ArbolBST.cs)	14
+Pila (Pila.cs)	14
+6.3 Lista Enlazada (ListaEnlazada.cs)	14
+7. Modelo de Datos	15
+8. Requerimientos del Sistema	19
+8.1 Requerimientos Funcionales	19
+8.2 Requerimientos No Funcionales	20
+10. Diagramas UML	21
+10.1 Diagrama de Casos de Uso	21
+10.2 Diagrama de Clases	23
+10.3 Diagrama de Secuencia — Algoritmo de Distribución	25
+11. Herramientas a Utilizar	26
+12. Innovación y por qué es Importante	26
+12.1 El vacío que llena este sistema	26
+12.2 Pilares de la innovación	27
+12.3 Beneficios sociales	28
+12.4 Beneficios técnicos	28
+13. Prototipo — Avance del Sistema (≥35%)	29
+13.1 Componentes implementados	29
+13.2 Componentes pendientes para la Fase II	30
+14. Fuentes de Consulta	31
+
+
+Introducción
+En El Salvador, numerosas organizaciones de apoyo social — como el Hogar de Ancianos San Vicente de Paúl, los comedores solidarios de Cáritas, iglesias barriales y pequeñas fundaciones comunitarias — enfrentan un desafío operativo crítico: la gestión manual de las donaciones que reciben. Sin presupuesto para herramientas tecnológicas avanzadas, estas instituciones llevan el control de sus recursos en papel o en hojas de cálculo básicas. Esta carencia genera consecuencias directas y concretas en el día a día.
+El resultado de este vacío tecnológico es casi siempre el mismo: desorden, injusticia y desperdicio. Familias que necesitan ayuda urgente quedan sin ella no porque los recursos no existan, sino porque nadie supo organizarlos. Personas que ya recibieron ayuda la semana anterior vuelven a recibirla, mientras casos críticos quedan invisibles. Los productos vencen en bodega porque nadie registró las fechas de vencimiento. Las decisiones sobre quién recibe qué dependen del criterio subjetivo de quien esté atendiendo ese día.
+Para resolver este problema, el presente proyecto propone el análisis, diseño e implementación de un Sistema de Gestión de Donaciones desarrollado en C# con Windows Forms. El sistema está concebido específicamente para la realidad de estas organizaciones: funciona completamente de forma local en computadoras con Windows, no requiere conexión a internet ni bases de datos externas, y su interfaz ha sido diseñada para ser intuitiva incluso para usuarios sin formación técnica.
+El elemento diferenciador es su algoritmo de distribución automática basado en el cálculo del déficit acumulado por categoría de producto. Esta lógica garantiza que los recursos escasos lleguen siempre a quienes más los necesitan, con criterios objetivos, trazables y auditables. Todo el motor inteligente se construye sobre estructuras de datos propias — implementadas desde cero sin recurrir a las colecciones genéricas de C# — lo que convierte al proyecto en un ejercicio profundo de aplicación práctica de la asignatura.
+
+Objetivos
+
+Objetivo General
+Desarrollar una aplicación de escritorio en C# con interfaz gráfica (WinForms) que optimice el registro, gestión y distribución de donaciones para organizaciones sociales locales, garantizando una asignación equitativa y trazable mediante la priorización automatizada de beneficiarios con mayor nivel de vulnerabilidad, apoyada en estructuras de datos implementadas desde cero.
+
+Objetivos Específicos
+Implementar un módulo de inventario para registrar el ingreso de donaciones, controlando tipo de producto y cantidades disponibles, utilizando una Tabla Hash propia para detección eficiente de duplicados en importaciones.
+Crear un registro de beneficiarios con búsqueda eficiente mediante un
+Árbol Binario de Búsqueda (BST) implementado desde cero, evaluando la situación de cada familia para asignarle un nivel de prioridad dinámico.
+Automatizar la asignación de recursos utilizando un Montículo Máximo (MaxHeap) como cola de prioridad, asegurando que los insumos se entreguen primero a los casos más urgentes según el déficit calculado por categoría.
+Generar un historial permanente de entregas mediante una Lista Enlazada, permitiendo a la organización mantener transparencia y trazabilidad completa de sus operaciones.
+Habilitar la funcionalidad de deshacer asignaciones durante la etapa de revisión, mediante una Pila (Stack) que registra cada modificación manual antes de confirmar una distribución.
+
+
+Alcance y Justificación
+Alcance del Sistema
+Entorno de ejecución: Aplicación de escritorio 100% local en computadoras con Windows, interfaz en WinForms.
+Gestión operativa: Registro, categorización y asignación de donativos a beneficiarios inscritos.
+Almacenamiento: SQLite como base de datos local embebida. No se requiere instalación de servidor ni conexión a internet.
+Estructuras de datos: Hashtable, MaxHeap, BST, Stack y Lista Enlazada implementadas desde cero en C#, sin colecciones genéricas del framework.
+
+Justificación
+Gran parte de las organizaciones que asisten a sectores vulnerables carecen del presupuesto para adquirir herramientas digitales complejas. Terminan gestionando su inventario y padrón de beneficiarios en libretas o en hojas de cálculo. Un simple error de control tiene consecuencias reales: una persona puede recibir ayuda por duplicado mientras que un caso de urgencia crítica se queda sin atención.
+Este proyecto soluciona ese vacío de forma simple, justa y accesible. Al no depender de internet, licencias ni servidores en la nube, cualquier centro de acopio puede implementarlo sin costo adicional. Desde la perspectiva técnica, representa una oportunidad concreta para aplicar estructuras de datos en un escenario del mundo real, demostrando cómo la programación puede generar impacto social directo.
+
+
+Descripción del Sistema y Módulos
+El sistema está estructurado en siete módulos con responsabilidades claramente separadas. Esta arquitectura modular garantiza que el código sea mantenible, extensible y fácil de depurar.
+
+Módulo 1 — Catálogos
+Permite crear, editar y eliminar categorías de productos. Es el primer bloque que debe configurarse ya que todo el sistema depende de él. Implementa integridad referencial: no se puede eliminar una categoría que tenga productos asociados. Soporta importación desde CSV para agilizar la configuración inicial.
+
+Módulo 2 — Unidades de Medida
+Administra las unidades disponibles y define cuáles son válidas para cada tipo de producto. La relación es muchos-a-muchos: un producto puede medirse en varias unidades. Este módulo previene errores semánticos como registrar "5 litros de jabón en barra"
+
+Módulo 3 — Inventario (Productos)
+Registra todos los productos en bodega con cantidad disponible, categoría y unidad de medida. Permite agregar, editar y dar de baja productos. La importación desde CSV utiliza la Tabla Hash propia indexada por SKU para detectar duplicados en O(1). Genera alertas visuales cuando el stock baja del mínimo configurable.
+
+Módulo 4 — Beneficiarios
+Gestiona el padrón de familias beneficiarias con nombre, número de miembros, historial y estado activo/inactivo. La búsqueda por nombre o identificador utiliza el Árbol Binario de Búsqueda (BST) logrando O(log n). Los beneficiarios inactivos se desactivan pero no se eliminan, preservando el historial para el cálculo de déficit.
+
+Módulo 5 — Órdenes y Solicitudes
+Captura lo que cada familia solicita antes de una distribución, ya sea ingresado manualmente o importado desde CSV. Las órdenes son opcionales: si una familia no solicita nada, el sistema la considera igualmente en base a su déficit histórico calculado.
+
+Módulo 6 — Distribución
+Ejecuta el algoritmo de distribución automática, genera la propuesta y permite que la secretaria la revise y confirme. Una distribución confirmada es inmutable: solo puede consultarse. Durante la revisión previa, cada ajuste manual se registra en la Pila (Stack) para permitir deshacer cambios.
+Módulo 7 — Historial y Reportes
+Guarda un registro permanente de cada distribución. Este historial cumple dos funciones: transparencia ante donantes y la comunidad, y alimentar el cálculo del déficit acumulado para la próxima distribución.
+
+Lógica de Solución — Algoritmo de Distribución
+El problema que resuelve
+El sistema recibe recursos limitados y un conjunto de familias con necesidades distintas. La pregunta central es: ¿cómo decidir qué darle a cada quien de forma justa, automática y sin favoritismos? La respuesta es el concepto de Déficit por Categoría.
+
+El concepto de Déficit por Categoría
+Para cada familia y cada categoría de producto, el sistema calcula cuánto debería haber recibido hasta hoy versus cuánto realmente recibió. La diferencia es el déficit:
+Imagen 1 . Código ejemplo sobre la fórmula a aplicar para el cálculo del déficit por categoría.
+
+
+La tasa de consumo estándar se basa en las tablas del Programa Mundial de Alimentos (PMA/WFP). Por ejemplo, una persona adulta requiere aproximadamente 400 gramos de granos básicos por día. Estos valores son configurables en el sistema.
+El insight clave es que el algoritmo corre por categoría de forma independiente. Una familia puede estar bien surtida de arroz pero tener un déficit crítico de aceite. Al correr el algoritmo por categoría, cada familia tiene su posición en la cola para cada tipo de producto de forma simultánea.
+
+El algoritmo paso a paso
+Calcular el déficit de cada familia en la categoría consultando su historial de recepciones y el tiempo transcurrido.
+Insertar cada familia con su puntaje de déficit en el MonticuloMaximo. Esta estructura garantiza que la familia con mayor déficit siempre esté en la cima en O(1).
+Extraer la familia del tope del Heap (mayor déficit), asignarle la cantidad correspondiente según el tamaño del hogar y el stock disponible, y descontar del inventario. Operación en O(log n).
+Repetir mientras haya stock disponible y familias en el Heap.
+Registrar cada asignación incluyendo el déficit pendiente que afectará la prioridad en la próxima distribución.
+
+Criterios de desempate
+Cuando dos familias tienen exactamente el mismo déficit calculado, el sistema aplica los siguientes criterios de forma determinista: (1) mayor número de miembros del hogar, (2) mayor antigüedad en el padrón (menor ID). El mismo input siempre produce el mismo output, lo que permite auditar cualquier distribución.
+
+Estructuras de Datos Implementadas
+Cumpliendo con el requisito académico central de la asignatura, todas las estructuras de datos son implementadas desde cero en C#, sin usar List<T>, Dictionary<K,V>, Queue<T>, Stack<T> ni ninguna colección genérica del framework .NET.
+
+Tabla Hash (TablaHash.cs)
+Almacena pares clave-valor con acceso en O(1) promedio. El SKU de cada producto es procesado por la función hash para determinar su posición en el arreglo interno:
+
+Imagen 2. Código ejemplo sobre el manejo de Tabla Hash para el procesamiento y almacenamiento para su uso dentro del sistema empleado escalabilidad y código limpio.
+
+Las colisiones se resuelven mediante encadenamiento: en cada posición del arreglo se mantiene una lista enlazada de los elementos que colisionaron. Se usa principalmente en la importación de inventario desde CSV: para 500 productos, cada verificación de duplicado es O(1) en lugar de O(n).
+
+Montículo Máximo (MonticuloMaximo.cs)
+El MaxHeap es un árbol binario completo representado como arreglo, donde el elemento de mayor prioridad siempre está en la raíz (índice 0). Implementa inserción en O(log n) mediante la operación Subir (comparación hacia la raíz), y extracción en O(log n) mediante la operación Bajar. Se instancia un MaxHeap independiente por cada categoría activa durante una distribución.
+
+Imagen 3 . Código ejemplo sobre el manejo de nodos y los montículos bases aplicando algoritmos de inserción y ordenamiento.
+
+Árbol Binario de Búsqueda (ArbolBST.cs)
+El BST indexa los beneficiarios por nombre para búsquedas eficientes en O(log n). Cada nodo contiene la llave (nombre), una Lista Enlazada de valores asociados para manejar homónimos, y referencias a hijo izquierdo e hijo derecho. Soporta recorrido InOrder para obtener el listado en orden alfabético sin costo adicional de ordenamiento.
+
+Pila (Pila.cs)
+Implementa la estructura LIFO (Last In, First Out) mediante una cadena de nodos enlazados. Se usa durante la revisión de la distribución propuesta: cada modificación manual se apila (Apilar), y puede revertirse con Desapilar. Al confirmar, la pila se vacía y los cambios son permanentes.
+
+Lista Enlazada (ListaEnlazada.cs)
+Almacena el historial de distribuciones y actúa como colección de apoyo dentro del BST. Al no conocer cuántas distribuciones habrá en el tiempo, la Lista Enlazada es la estructura adecuada: crece dinámicamente sin desperdiciar memoria. El acceso es generalmente en orden cronológico, que es el orden natural de la lista.
+
+
+Modelo de Datos
+El sistema utiliza SQLite como base de datos local embebida. No requiere instalación de servidor ni conexión a internet. El archivo .db reside en la misma máquina que la aplicación.
+
+Categoria
+PK
+FK
+Campo
+Tipo
+NOT NULL
+PK
+
+
+id
+INTEGER
+✓
+
+
+
+
+nombre
+TEXT
+✓
+
+Tabla 1. Esquema completo de la tabla Categoria.
+
+UnidadMedida
+PK
+FK
+Campo
+Tipo
+NOT NULL
+PK
+
+
+id
+INTEGER
+✓
+
+
+
+
+nombre
+TEXT
+✓
+
+
+
+
+tipo
+TEXT
+✓
+
+Tabla 2. Esquema completo de la tabla UnidadMedida.
+
+
+Producto
+PK
+FK
+Campo
+Tipo
+NOT NULL
+PK
+
+
+id
+INTEGER
+✓
+
+
+
+
+sku
+TEXT
+✓
+
+
+
+
+nombre
+TEXT
+✓
+
+
+FK
+fk_categoria
+INTEGER
+✓
+
+
+
+
+cantidadDisponible
+REAL
+✓
+
+
+FK
+fk_unidad
+INTEGER
+✓
+
+
+
+
+stockMinimo
+REAL
+
+
+
+Tabla 3. Esquema completo de la tabla Producto.
+
+Beneficiario
+PK
+FK
+Campo
+Tipo
+NOT NULL
+PK
+
+
+id
+INTEGER
+✓
+
+
+
+
+nombre
+TEXT
+✓
+
+
+
+
+miembrosHogar
+INTEGER
+✓
+
+
+
+
+activo
+INTEGER
+✓
+
+Tabla 4. Esquema completo de la tabla Beneficiario.
+
+TasaConsumo
+PK
+FK
+Campo
+Tipo
+NOT NULL
+
+
+FK
+fk_categoria
+INTEGER
+✓
+
+
+
+
+gramosPersonaDia
+REAL
+✓
+
+Tabla 5. Esquema completo de la tabla TasaConsumo.
+
+Orden
+PK
+FK
+Campo
+Tipo
+NOT NULL
+PK
+
+
+id
+INTEGER
+✓
+
+
+
+
+fechaGeneracion
+TEXT
+✓
+
+
+
+
+estado
+TEXT
+✓
+
+
+
+
+observaciones
+TEXT
+
+
+
+Tabla 6. Esquema completo de la tabla Orden.
+
+OrdenDetalle
+PK
+FK
+Campo
+Tipo
+NOT NULL
+PK
+
+
+id
+INTEGER
+✓
+
+
+FK
+fk_orden
+INTEGER
+✓
+
+
+FK
+fk_beneficiario
+INTEGER
+✓
+
+
+FK
+fk_categoria
+INTEGER
+✓
+
+
+
+
+cantidadAsignada
+REAL
+✓
+
+
+
+
+cantidadSolicitada
+REAL
+
+
+
+
+
+
+deficitCalculado
+REAL
+✓
+
+Tabla 7. Esquema completo de la tabla OrdenDetalle.
+Requerimientos del Sistema
+Requerimientos Funcionales
+
+#
+Descripción
+RF01
+Registro de donaciones: El sistema debe permitir ingresar donaciones indicando tipo de producto, cantidad disponible y fecha de vencimiento cuando aplique.
+RF02
+Registro de beneficiarios: Registrar familias con nombre, número de integrantes y nivel de vulnerabilidad.
+RF03
+Cálculo automático de prioridad: Calcular el déficit acumulado por categoría para cada beneficiario.
+RF04
+Cola de prioridad con MaxHeap: Ordenar beneficiarios por déficit garantizando que las asignaciones empiecen por los casos más urgentes.
+RF05
+Asignación de donaciones: Asignar recursos al beneficiario con mayor prioridad descontando del inventario lo entregado.
+RF06
+Historial de asignaciones: Registrar cada entrega con quién recibió, qué recibió, cuándo y el déficit calculado.
+RF07
+Alertas de inventario: Notificar cuando un producto esté próximo a vencer o con stock bajo el mínimo configurado.
+RF08
+Importación desde CSV: Cargar inventario y padrón de beneficiarios desde archivos CSV con validación previa completa.
+RF09
+Funcionalidad Deshacer: Revertir ajustes manuales durante la revisión de distribución antes de confirmarla.
+
+Tabla 7. Requerimientos funcionales con su respectiva descripción.
+
+Requerimientos No Funcionales
+
+#
+Descripción
+RNF01
+Usabilidad: Interfaz intuitiva para usuarios sin capacitación técnica (perfil: secretaria de organización comunitaria).
+RNF02
+Rendimiento: Las operaciones de registro, asignación y búsqueda deben responder sin tiempos de espera perceptibles.
+RNF03
+Disponibilidad offline: El sistema funciona completamente sin conexión a internet, operando de forma local.
+RNF04
+Mantenibilidad: Código organizado en capas con responsabilidades separadas (Modelos, Estructuras, Servicios, Formularios).
+RNF05
+Portabilidad: Ejecutable en cualquier computadora con Windows sin más requisito que tener instalado .NET.
+RNF06
+Integridad de datos: Validar todos los datos ingresados para evitar registros incompletos o violaciones de reglas de negocio.
+
+Tabla 8. Requerimientos no funcionales con su respectiva descripción.
+
+Diagramas UML
+Diagrama de Casos de Uso
+El siguiente diagrama muestra los actores del sistema y las funcionalidades que cada uno puede ejercer. La Secretaria es el usuario principal con acceso a todas las operaciones operativas. El Administrador gestiona la configuración del sistema.
+Imagen 4. Casos de uso funcionales a aplicar dentro del sistema.
+Diagrama de Clases
+El diagrama muestra la arquitectura de las estructuras de datos implementadas desde cero y su relación con los modelos de dominio. Las relaciones de composición muestran que cada estructura contiene sus propios nodos internos. Las dependencias (líneas punteadas) indican qué estructuras son utilizadas por qué entidades del negocio.
+Imagen 5. Diagrama de clases con su simbología y atributos respectivos demostrando la aplicabilidad, funcionalidad e integridad del sistema.
+
+
+Diagrama de Secuencia — Algoritmo de Distribución
+Imagen 6 . Diagrama de secuencia demostrando el flujo y eventos del sistema.
+El diagrama detalla la interacción entre componentes durante la ejecución del algoritmo de distribución automática, desde que la secretaria presiona el botón hasta que la distribución queda confirmada y registrada en la base de datos.
+
+Herramientas a Utilizar
+
+Herramienta
+Descripción / Propósito
+Visual C# / Windows Forms
+Lenguaje y framework de la interfaz gráfica de escritorio
+SQLite
+Base de datos local embebida, sin necesidad de servidor
+Lógica CSV propia
+Parser manual para archivos CSV, sin librerías externas
+Estructuras propias
+Hashtable, MaxHeap, BST, Stack, Lista Enlazada — todas implementadas desde cero, sin generics de C#
+
+Tabla 9. Explicación del propósito de cada una de las herramientas a utilizar dentro del proyecto.
+
+La elección de SQLite sobre almacenamiento solo en memoria responde a un criterio de confiabilidad: si el programa se cierra inesperadamente (corte de luz, reinicio), todos los datos en memoria se pierden. Para una organización que depende de estos datos para operar, esa pérdida no es aceptable. SQLite garantiza persistencia sin instalación adicional.
+
+
+Innovación y por qué es Importante
+El vacío que llena este sistema
+Existen plataformas grandes de gestión humanitaria utilizadas por Cruz Roja, ACNUR y grandes ONGs internacionales. Todas comparten el mismo obstáculo para organizaciones pequeñas: requieren internet constante, personal técnico, licencias costosas y están diseñadas para operaciones a escala nacional. Una iglesia de barrio, un comedor comunitario o una pequeña fundación local no puede costear nada de eso. Termina usando papel o una hoja de cálculo básica. Ese es el vacío que este sistema llena.
+
+Pilares de la innovación
+Distribución multi-categoría con déficit acumulado: La mayoría de los sistemas de inventario simple distribuyen por parejo o según quien llegó primero. Este sistema sabe que una familia puede estar bien en arroz pero en déficit crítico de aceite, y trata cada categoría de forma independiente. Esta es la lógica que usan los sistemas de distribución humanitaria a gran escala; este proyecto la trae a escala de barrio, sin costo.
+Trazabilidad real y auditable: No solo queda registrado qué se entregó, sino también por qué en ese orden — el déficit calculado queda guardado junto con la asignación. Cualquier persona puede auditar una distribución y entender la lógica detrás de cada decisión. Esto genera confianza con donantes y la comunidad.
+Basado en estándares reales: Las tasas de consumo están basadas en tablas del Programa Mundial de Alimentos (WFP) y organismos de nutrición reconocidos. Esto le da credibilidad científica al sistema y permite que las organizaciones justifiquen sus decisiones de distribución ante cualquier auditoría.
+
+Sin internet, sin servidor, sin costo: Funciona en cualquier computadora con Windows. No hay mensualidades, no hay dependencia de un proveedor externo, no hay riesgo de que el sistema falle en el momento de la distribución.
+
+Beneficios sociales
+El sistema transforma fundamentalmente quién recibe ayuda y cuándo. Sin un criterio claro de prioridad, las donaciones llegan a quienes llegaron primero o a quienes tienen más facilidad para pedirlas, no necesariamente a quienes más las necesitan. Con este sistema, esa decisión no depende de la percepción de nadie, sino de un puntaje calculado a partir de la situación real de cada persona. Eso hace que la distribución sea más justa, más difícil de cuestionar y más difícil de manipular.
+Al tener un registro digital de todo lo que entra y sale, la organización puede saber en todo momento qué tiene disponible, cuánto le queda y qué está próximo a vencerse. Los productos dejan de perderse porque nadie se acordó de usarlos a tiempo. El inventario siempre refleja la realidad.
+Poder mostrar un historial claro de quién recibió qué y cuándo genera confianza tanto en los donantes como en la comunidad. Muchas organizaciones pierden apoyo no porque hagan mal su trabajo, sino porque no pueden demostrar que lo hacen bien. Un registro ordenado resuelve ese problema directamente.
+
+Beneficios técnicos
+Arquitectura modular y escalable: La separación en módulos (Catálogos, Inventario, Beneficiarios, Distribución, Historial) permite que el sistema sea extensible sin reescribir componentes existentes.
+POO aplicada: Cada entidad del sistema (donación, beneficiario, asignación) se modela como objeto con datos y comportamientos propios, mapeando fielmente la lógica del mundo real al entorno digital.
+Análisis de eficiencia algorítmica: La implementación manual de estructuras permite comparar complejidades reales: O(1) para la Hashtable, O(log n) para el Heap y el BST. Este análisis refleja el razonamiento que produce software eficiente y robusto.
+
+Prototipo — Avance del Sistema (≥35%)
+El prototipo actual representa un avance funcional de aproximadamente el 40% de la aplicación total. Los módulos implementados corresponden a las primeras semanas del plan de construcción definido.
+
+Componentes implementados
+Módulo de Catálogos: CRUD completo de categorías con validación de integridad referencial. FormCategorias.cs operativo.
+Módulo de Unidades de Medida: CRUD completo con la relación muchos-a-muchos entre unidades y tipos de producto. FormUnidades.cs operativo.
+Módulo de Inventario: Registro, edición y búsqueda de productos. Importación desde CSV implementada. TablaHash.cs funcional. FormProductos.cs operativo.
+Módulo de Beneficiarios: Registro y búsqueda de familias. ArbolBST.cs implementado y funcional con búsqueda O(log n). FormBeneficiarios.cs operativo.
+Todas las estructuras de datos: ListaEnlazada.cs, Pila.cs, TablaHash.cs, MonticuloMaximo.cs, ArbolBST.cs — implementadas desde cero y listas para integrarse con los módulos restantes.
+Capa de datos: ConexionDB.cs con SQLite configurado. Servicios de acceso a datos para todas las entidades (CategoriaServicio.cs, ProductoServicio.cs, BeneficiarioServicio.cs, UnidadServicio.cs).
+
+Componentes pendientes para la Fase II
+Módulo de Distribución: interfaz de generación y revisión de la distribución, con integración del MonticuloMaximo.
+Módulo de Historial y Reportes: consulta del historial de distribuciones confirmadas.
+Módulo de Órdenes y Solicitudes: captura e importación de solicitudes de familias.
+
+Fuentes de Consulta
+
+World Food Programme (WFP). (2024). Programa de Seguridad Alimentaria y Nutricional. United Nations WFP. Disponible en: https://www.wfp.org/nutrition
+Food and Agriculture Organization of the United Nations (FAO). (2024). Nutrición y sistemas alimentarios. Disponible en: https://www.fao.org/nutrition/es
+Microsoft Learn. (2024). Tutorial: Crear una aplicación de Windows Forms con C#. Microsoft	Docs.	Disponible	en: https://learn.microsoft.com/en-us/dotnet/desktop/winforms/get-started/create-app-visual-st udio
+Microsoft Learn. (2024). ¿Qué es Windows Forms? Descripción general del framework WinForms	para	.NET.	Disponible	en: https://learn.microsoft.com/en-us/dotnet/desktop/winforms/getting-started-with-windows-fo rms
+SQLite Tutorial. (2024). Getting Started with SQLite — serverless, self-contained, zero-configuration	database.	Disponible	en: https://www.sqlitetutorial.net/sqlite-getting-started/
+SQLite Tutorial. (2024). SQLite CREATE TABLE — Guía completa de creación de tablas y relaciones. Disponible en: https://www.sqlitetutorial.net/sqlite-create-table/
+GeeksforGeeks. (2024). Binary Search Tree — Data Structure and Algorithms. Disponible	en:
+https://www.geeksforgeeks.org/introduction-to-binary-search-tree-data-structure-and-algori thm-tutorials/
+GeeksforGeeks. (2024). Searching in Binary Search Tree (BST) — O(log n) lookup explained.	Disponible	en: https://www.geeksforgeeks.org/dsa/binary-search-tree-set-1-search-and-insertion/
+GeeksforGeeks. (2024). Hash Table — Implementación de tablas hash con encadenamiento para manejo de colisiones. Disponible en: https://www.geeksforgeeks.org/hashing-data-structure/
+GeeksforGeeks. (2024). Priority Queue using Binary Heap — Max Heap implementation	and	complexity	analysis.	Disponible	en: https://www.geeksforgeeks.org/priority-queue-using-binary-heap

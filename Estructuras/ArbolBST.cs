@@ -69,6 +69,27 @@ namespace ProyectoCatedra.Estructuras
             return eliminado;
         }
 
+        public ListaEnlazada BuscarParcial(string fragmento)
+        {
+            ListaEnlazada resultados = new ListaEnlazada();
+            BuscarParcialRecursivo(raiz, fragmento, resultados);
+            return resultados;
+        }
+
+        private void BuscarParcialRecursivo(NodoArbol? actual, string fragmento, ListaEnlazada resultados)
+        {
+            if (actual == null) return;
+
+            BuscarParcialRecursivo(actual.Izquierdo, fragmento, resultados);
+
+            if (actual.Llave.IndexOf(fragmento, StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                actual.Valores.ParaCada(valor => resultados.Agregar(valor));
+            }
+
+            BuscarParcialRecursivo(actual.Derecho, fragmento, resultados);
+        }
+
         public ListaEnlazada ObtenerInOrder()
         {
             var resultado = new ListaEnlazada();

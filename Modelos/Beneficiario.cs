@@ -1,3 +1,5 @@
+using System;
+
 namespace ProyectoCatedra.Modelos
 {
     public class Beneficiario
@@ -6,6 +8,7 @@ namespace ProyectoCatedra.Modelos
         public string Nombre { get; set; } = string.Empty;
         public int MiembrosHogar { get; set; }
         public bool Activo { get; set; }
+        public DateTime FechaRegistro { get; set; } = DateTime.Now;
 
         public override string ToString()
         {
