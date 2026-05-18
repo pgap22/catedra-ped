@@ -183,6 +183,22 @@ namespace ProyectoCatedra.Utilidades
                             pCount++;
                         }
 
+                        using (var cmd = new SQLiteCommand("UPDATE Productos SET MaximoPorEntrega = 1, DiasReposicion = 90 WHERE Nombre = 'Cepillo Dental'", conexion, tr))
+                        {
+                            cmd.ExecuteNonQuery();
+                        }
+
+                        InsertarPack(conexion, tr, 1, 1, 45);
+                        InsertarPack(conexion, tr, 1, 2, 25);
+                        InsertarPack(conexion, tr, 1, 5, 20);
+                        InsertarPack(conexion, tr, 1, 6, 10);
+                        InsertarPack(conexion, tr, 2, 10, 70);
+                        InsertarPack(conexion, tr, 2, 13, 30);
+                        InsertarPack(conexion, tr, 3, 15, 35);
+                        InsertarPack(conexion, tr, 3, 16, 25);
+                        InsertarPack(conexion, tr, 3, 18, 20);
+                        InsertarPack(conexion, tr, 3, 22, 20);
+
                         // 7. Beneficiarios (150 registros)
                         string sqlBen = "INSERT INTO Beneficiarios (Nombre, MiembrosHogar, Activo, FechaRegistro) VALUES (@nom, @miembros, 1, @fecha)";
                         string[] nombres = { "Juan", "Maria", "Carlos", "Ana", "Luis", "Carmen", "Pedro", "Laura", "Jose", "Rosa", "Jorge", "Marta", "Miguel", "Lucia", "Francisco", "Elena", "Roberto", "Sandra", "Diego", "Patricia" };
@@ -256,11 +272,18 @@ namespace ProyectoCatedra.Utilidades
                         InsertarTasa(conexion, tr, sqlTasa, 2, 0.05, 2);
                         InsertarTasa(conexion, tr, sqlTasa, 3, 0.1, 3);
 
-                        string sqlProd = "INSERT INTO Productos (SKU, Nombre, IdCategoria, Stock, IdUnidad) VALUES (@sku, @nom, @cId, @stock, @uId)";
+                        string sqlProd = "INSERT INTO Productos (SKU, Nombre, IdCategoria, Stock, IdUnidad, MaximoPorEntrega, DiasReposicion) VALUES (@sku, @nom, @cId, @stock, @uId, @max, @dias)";
                         InsertarProducto(conexion, tr, sqlProd, "SKU001", "Arroz Blanco", 1, 40, 1);
                         InsertarProducto(conexion, tr, sqlProd, "SKU002", "Frijol Rojo", 1, 25, 1);
                         InsertarProducto(conexion, tr, sqlProd, "SKU003", "Aceite Vegetal", 2, 12, 2);
                         InsertarProducto(conexion, tr, sqlProd, "SKU004", "Jabon de Bano", 3, 30, 3);
+                        InsertarProducto(conexion, tr, sqlProd, "SKU005", "Cepillo Dental", 3, 20, 3, 1, 90);
+
+                        InsertarPack(conexion, tr, 1, 1, 60);
+                        InsertarPack(conexion, tr, 1, 2, 40);
+                        InsertarPack(conexion, tr, 2, 3, 100);
+                        InsertarPack(conexion, tr, 3, 4, 70);
+                        InsertarPack(conexion, tr, 3, 5, 30);
 
                         string sqlBen = "INSERT INTO Beneficiarios (Nombre, MiembrosHogar, Activo, FechaRegistro) VALUES (@nom, @miembros, 1, @fecha)";
                         DateTime fecha = RelojDemo.Ahora;
@@ -282,7 +305,7 @@ namespace ProyectoCatedra.Utilidades
 
         private static void LimpiarBase(SQLiteConnection conexion, SQLiteTransaction tr)
         {
-            string[] tablas = { "OrdenDetalle", "Orden", "TasaConsumo", "Productos", "CategoriaUnidades", "Categorias", "UnidadesMedida", "Beneficiarios" };
+            string[] tablas = { "OrdenDetalle", "Orden", "CategoriaPackDetalle", "TasaConsumo", "Productos", "CategoriaUnidades", "Categorias", "UnidadesMedida", "Beneficiarios" };
             foreach (var tabla in tablas)
             {
                 using (var cmd = new SQLiteCommand($"DELETE FROM {tabla};", conexion, tr))
@@ -338,7 +361,7 @@ namespace ProyectoCatedra.Utilidades
             }
         }
 
-        private static void InsertarProducto(SQLiteConnection conexion, SQLiteTransaction tr, string sql, string sku, string nombre, int categoriaId, double stock, int unidadId)
+        private static void InsertarProducto(SQLiteConnection conexion, SQLiteTransaction tr, string sql, string sku, string nombre, int categoriaId, double stock, int unidadId, double? maximoPorEntrega = null, int? diasReposicion = null)
         {
             using (var cmd = new SQLiteCommand(sql, conexion, tr))
             {
@@ -347,6 +370,20 @@ namespace ProyectoCatedra.Utilidades
                 cmd.Parameters.AddWithValue("@cId", categoriaId);
                 cmd.Parameters.AddWithValue("@stock", stock);
                 cmd.Parameters.AddWithValue("@uId", unidadId);
+                cmd.Parameters.AddWithValue("@max", (object?)maximoPorEntrega ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@dias", (object?)diasReposicion ?? DBNull.Value);
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        private static void InsertarPack(SQLiteConnection conexion, SQLiteTransaction tr, int categoriaId, int productoId, double porcentaje)
+        {
+            string sql = "INSERT INTO CategoriaPackDetalle (CategoriaId, ProductoId, Porcentaje) VALUES (@cat, @prod, @porcentaje)";
+            using (var cmd = new SQLiteCommand(sql, conexion, tr))
+            {
+                cmd.Parameters.AddWithValue("@cat", categoriaId);
+                cmd.Parameters.AddWithValue("@prod", productoId);
+                cmd.Parameters.AddWithValue("@porcentaje", porcentaje);
                 cmd.ExecuteNonQuery();
             }
         }

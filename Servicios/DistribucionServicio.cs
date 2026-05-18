@@ -13,6 +13,8 @@ namespace ProyectoCatedra.Servicios
         private BeneficiarioServicio beneficiarioServicio;
         private ProductoServicio productoServicio;
         private TasaConsumoServicio tasaServicio;
+        private CategoriaPackServicio packServicio;
+        private HistorialServicio historialServicio;
 
         public DistribucionServicio()
         {
@@ -20,6 +22,8 @@ namespace ProyectoCatedra.Servicios
             beneficiarioServicio = new BeneficiarioServicio();
             productoServicio = new ProductoServicio();
             tasaServicio = new TasaConsumoServicio();
+            packServicio = new CategoriaPackServicio();
+            historialServicio = new HistorialServicio();
         }
 
         public ListaEnlazada GenerarPropuestaDistribucion(int categoriaIdFiltro = 0)
@@ -41,11 +45,16 @@ namespace ProyectoCatedra.Servicios
                 var tasa = (TasaConsumo)tasas.Obtener(i)!;
                 if (categoriaIdFiltro > 0 && tasa.IdCategoria != categoriaIdFiltro) continue;
                 
-                // Obtener stock disponible total para la categoria en su unidad base
-                double stockDisponible = ObtenerStockTotalCategoria(tasa.IdCategoria, tasa.IdUnidadBase);
-                if (stockDisponible <= 0) continue; // Skip si no hay nada que dar
+                var pack = packServicio.ListarPorCategoria(tasa.IdCategoria);
+                if (pack.Conteo() == 0) continue;
+                if (!packServicio.EsPackValido(tasa.IdCategoria))
+                {
+                    throw new InvalidOperationException($"El pack de la categoría '{tasa.NombreCategoria}' debe sumar exactamente 100% antes de distribuir.");
+                }
 
-                var productoPrincipal = ObtenerProductoPrincipalCategoria(tasa.IdCategoria);
+                // El stock útil es el stock de los productos incluidos en el pack.
+                double stockDisponible = ObtenerStockTotalPack(pack);
+                if (stockDisponible <= 0) continue; // Skip si no hay nada que dar
 
                 MonticuloMaximo heap = new MonticuloMaximo(beneficiarios.Conteo());
 
@@ -98,25 +107,18 @@ namespace ProyectoCatedra.Servicios
                         continue;
                     }
                     
-                    // Solo asignamos si la cantidad es razonable (> 0.01) para evitar centavos de producto
                     if (aAsignar > 0.01)
                     {
-                        info.Asignado += aAsignar;
-                        stockDisponible -= aAsignar;
-                        
-                        propuesta.Agregar(new OrdenDetalle
+                        var resultadoSplit = CrearLineasProducto(info, tasa, pack, aAsignar);
+                        if (resultadoSplit.TotalFisicoAsignado < 1) continue;
+
+                        info.Asignado += resultadoSplit.TotalFisicoAsignado;
+                        stockDisponible -= resultadoSplit.TotalFisicoAsignado;
+
+                        for (int k = 0; k < resultadoSplit.Lineas.Conteo(); k++)
                         {
-                            BeneficiarioId = info.Beneficiario.Id,
-                            NombreBeneficiario = info.Beneficiario.Nombre,
-                            CategoriaId = tasa.IdCategoria,
-                            NombreCategoria = tasa.NombreCategoria,
-                            CantidadAsignada = info.Asignado,
-                            DeficitCalculado = Math.Round(info.Deficit, 2),
-                            ExplicacionCalculo = info.ExplicacionCalculo,
-                            SKUProductoSugerido = productoPrincipal.SKU,
-                            NombreProductoSugerido = productoPrincipal.Nombre,
-                            NombreUnidadMedida = tasa.NombreUnidadBase
-                        });
+                            propuesta.Agregar(resultadoSplit.Lineas.Obtener(k)!);
+                        }
                     }
                 }
             }
@@ -171,6 +173,91 @@ namespace ProyectoCatedra.Servicios
             return (deficitFinal, explicacion);
         }
 
+        private (ListaEnlazada Lineas, double TotalFisicoAsignado) CrearLineasProducto(InfoDistribucion info, TasaConsumo tasa, ListaEnlazada pack, double cantidadCategoria)
+        {
+            ListaEnlazada lineas = new ListaEnlazada();
+            double totalFisico = 0;
+            string detalleBase = info.ExplicacionCalculo +
+                                 $"\n\nPack aplicado a {Math.Floor(cantidadCategoria)} unidades de {tasa.NombreCategoria}:";
+
+            for (int i = 0; i < pack.Conteo(); i++)
+            {
+                var lineaPack = (CategoriaPackDetalle)pack.Obtener(i)!;
+                double solicitado = Math.Floor(cantidadCategoria * (lineaPack.Porcentaje / 100.0));
+                string explicacionProducto = detalleBase + $"\n- {lineaPack.NombreProducto}: {lineaPack.Porcentaje}% = {solicitado} unidades enteras.";
+
+                if (solicitado < 1)
+                {
+                    continue;
+                }
+
+                if (lineaPack.DiasReposicion.HasValue)
+                {
+                    DateTime? ultimaEntrega = historialServicio.ObtenerUltimaEntregaProducto(info.Beneficiario.Id, lineaPack.ProductoId);
+                    if (ultimaEntrega.HasValue)
+                    {
+                        double dias = (RelojDemo.Ahora - ultimaEntrega.Value).TotalDays;
+                        if (dias < lineaPack.DiasReposicion.Value)
+                        {
+                            explicacionProducto += $"\n- Omitido por reposición: recibido hace {Math.Round(dias, 1)} días; regla: {lineaPack.DiasReposicion.Value} días.";
+                            continue;
+                        }
+                    }
+                }
+
+                if (lineaPack.MaximoPorEntrega.HasValue && solicitado > lineaPack.MaximoPorEntrega.Value)
+                {
+                    explicacionProducto += $"\n- Limitado por máximo por entrega: {lineaPack.MaximoPorEntrega.Value}.";
+                    solicitado = Math.Floor(lineaPack.MaximoPorEntrega.Value);
+                }
+
+                if (lineaPack.StockDisponible <= 0)
+                {
+                    explicacionProducto += "\n- Omitido por falta de stock del producto.";
+                    continue;
+                }
+
+                double asignado = Math.Min(solicitado, Math.Floor(lineaPack.StockDisponible));
+                if (asignado < solicitado)
+                {
+                    explicacionProducto += $"\n- Reducido por stock disponible: {lineaPack.StockDisponible}.";
+                }
+
+                if (asignado < 1) continue;
+
+                lineaPack.StockDisponible -= asignado;
+                totalFisico += asignado;
+
+                lineas.Agregar(new OrdenDetalle
+                {
+                    BeneficiarioId = info.Beneficiario.Id,
+                    NombreBeneficiario = info.Beneficiario.Nombre,
+                    CategoriaId = tasa.IdCategoria,
+                    NombreCategoria = tasa.NombreCategoria,
+                    ProductoId = lineaPack.ProductoId,
+                    CantidadAsignada = asignado,
+                    DeficitCalculado = Math.Round(info.Deficit, 2),
+                    ExplicacionCalculo = explicacionProducto,
+                    SKUProductoSugerido = lineaPack.SKUProducto,
+                    NombreProductoSugerido = lineaPack.NombreProducto,
+                    NombreUnidadMedida = tasa.NombreUnidadBase
+                });
+            }
+
+            return (lineas, totalFisico);
+        }
+
+        private double ObtenerStockTotalPack(ListaEnlazada pack)
+        {
+            double total = 0;
+            for (int i = 0; i < pack.Conteo(); i++)
+            {
+                var linea = (CategoriaPackDetalle)pack.Obtener(i)!;
+                total += Math.Floor(linea.StockDisponible);
+            }
+            return total;
+        }
+
         public double ObtenerStockTotalCategoria(int idCategoria, int idUnidadBase = 0)
         {
             // Obtiene la suma del stock de todos los productos de esta categoria
@@ -196,28 +283,9 @@ namespace ProyectoCatedra.Servicios
             return total;
         }
 
-        private (string SKU, string Nombre) ObtenerProductoPrincipalCategoria(int idCategoria)
+        public double ObtenerStockProducto(int productoId)
         {
-            string sku = "";
-            string nombre = "";
-            using (var conexion = conexionDB.ObtenerConexion())
-            {
-                conexion.Open();
-                string sql = "SELECT SKU, Nombre FROM Productos WHERE IdCategoria = @cId AND Stock > 0 ORDER BY Id ASC LIMIT 1";
-                using (var cmd = new SQLiteCommand(sql, conexion))
-                {
-                    cmd.Parameters.AddWithValue("@cId", idCategoria);
-                    using (var lector = cmd.ExecuteReader())
-                    {
-                        if (lector.Read())
-                        {
-                            sku = lector["SKU"]?.ToString() ?? "";
-                            nombre = lector["Nombre"]?.ToString() ?? "";
-                        }
-                    }
-                }
-            }
-            return (sku, nombre);
+            return productoServicio.ObtenerStockProducto(productoId);
         }
 
         public void ConfirmarDistribucion(ListaEnlazada detalles, string observaciones)
@@ -241,12 +309,13 @@ namespace ProyectoCatedra.Servicios
 
                         // 2. Guardar Detalles y Descontar Stock
                         string sqlDetalle = @"
-                            INSERT INTO OrdenDetalle (OrdenId, BeneficiarioId, CategoriaId, CantidadAsignada, DeficitCalculado) 
-                            VALUES (@oId, @bId, @cId, @cant, @def)";
+                            INSERT INTO OrdenDetalle (OrdenId, BeneficiarioId, CategoriaId, ProductoId, CantidadAsignada, DeficitCalculado) 
+                            VALUES (@oId, @bId, @cId, @pId, @cant, @def)";
                             
                         // Descuento de stock en cascada a los productos de la categoria (estrategia FIFO por ID de producto)
                         string sqlProdSelect = "SELECT Id, Stock FROM Productos WHERE IdCategoria = @cId AND Stock > 0 ORDER BY Id ASC";
                         string sqlProdUpdate = "UPDATE Productos SET Stock = @nuevoStock WHERE Id = @pId";
+                        string sqlProdExacto = "UPDATE Productos SET Stock = Stock - @cant WHERE Id = @pId AND Stock >= @cant";
 
                         for (int i = 0; i < detalles.Conteo(); i++)
                         {
@@ -257,12 +326,25 @@ namespace ProyectoCatedra.Servicios
                                 cmdD.Parameters.AddWithValue("@oId", ordenId);
                                 cmdD.Parameters.AddWithValue("@bId", det.BeneficiarioId);
                                 cmdD.Parameters.AddWithValue("@cId", det.CategoriaId);
+                                cmdD.Parameters.AddWithValue("@pId", det.ProductoId > 0 ? det.ProductoId : DBNull.Value);
                                 cmdD.Parameters.AddWithValue("@cant", det.CantidadAsignada);
                                 cmdD.Parameters.AddWithValue("@def", det.DeficitCalculado);
                                 cmdD.ExecuteNonQuery();
                             }
                             
-                            // Descontar inventario
+                            if (det.ProductoId > 0)
+                            {
+                                using (var cmdExacto = new SQLiteCommand(sqlProdExacto, conexion, tr))
+                                {
+                                    cmdExacto.Parameters.AddWithValue("@cant", det.CantidadAsignada);
+                                    cmdExacto.Parameters.AddWithValue("@pId", det.ProductoId);
+                                    int filas = cmdExacto.ExecuteNonQuery();
+                                    if (filas == 0) throw new InvalidOperationException("No hay stock suficiente para uno de los productos asignados.");
+                                }
+                                continue;
+                            }
+
+                            // Compatibilidad con filas antiguas o flujos sin producto específico.
                             double aDescontar = det.CantidadAsignada;
                             
                             // Buscamos productos para descontar

@@ -26,6 +26,7 @@ namespace ProyectoCatedra.Servicios
                         o.FechaGeneracion, 
                         b.Nombre AS Beneficiario,
                         c.Nombre AS Categoria,
+                        p.Nombre AS Producto,
                         od.CantidadAsignada,
                         u.Nombre AS Unidad,
                         od.DeficitCalculado
@@ -33,6 +34,7 @@ namespace ProyectoCatedra.Servicios
                     INNER JOIN OrdenDetalle od ON o.Id = od.OrdenId
                     INNER JOIN Beneficiarios b ON od.BeneficiarioId = b.Id
                     INNER JOIN Categorias c ON od.CategoriaId = c.Id
+                    LEFT JOIN Productos p ON od.ProductoId = p.Id
                     INNER JOIN TasaConsumo t ON c.Id = t.IdCategoria
                     INNER JOIN UnidadesMedida u ON t.IdUnidadBase = u.Id
                     WHERE o.Estado = 'CONFIRMADA'
@@ -49,6 +51,7 @@ namespace ProyectoCatedra.Servicios
                             Fecha = Convert.ToDateTime(lector["FechaGeneracion"]),
                             Beneficiario = lector["Beneficiario"].ToString() ?? "",
                             Categoria = lector["Categoria"].ToString() ?? "",
+                            Producto = lector["Producto"] == DBNull.Value ? "" : lector["Producto"].ToString() ?? "",
                             CantidadAsignada = Convert.ToDouble(lector["CantidadAsignada"]),
                             Unidad = lector["Unidad"].ToString() ?? "",
                             DeficitCalculado = Convert.ToDouble(lector["DeficitCalculado"])
@@ -59,6 +62,30 @@ namespace ProyectoCatedra.Servicios
             }
             return historial;
         }
+
+        public DateTime? ObtenerUltimaEntregaProducto(int beneficiarioId, int productoId)
+        {
+            using (var conexion = conexionDB.ObtenerConexion())
+            {
+                conexion.Open();
+                string sql = @"
+                    SELECT MAX(o.FechaGeneracion)
+                    FROM OrdenDetalle od
+                    INNER JOIN Orden o ON od.OrdenId = o.Id
+                    WHERE o.Estado = 'CONFIRMADA'
+                      AND od.BeneficiarioId = @beneficiarioId
+                      AND od.ProductoId = @productoId";
+
+                using (var cmd = new SQLiteCommand(sql, conexion))
+                {
+                    cmd.Parameters.AddWithValue("@beneficiarioId", beneficiarioId);
+                    cmd.Parameters.AddWithValue("@productoId", productoId);
+                    var resultado = cmd.ExecuteScalar();
+                    if (resultado == null || resultado == DBNull.Value) return null;
+                    return Convert.ToDateTime(resultado);
+                }
+            }
+        }
     }
 
     public class RegistroHistorial
@@ -67,6 +94,7 @@ namespace ProyectoCatedra.Servicios
         public DateTime Fecha { get; set; }
         public string Beneficiario { get; set; } = string.Empty;
         public string Categoria { get; set; } = string.Empty;
+        public string Producto { get; set; } = string.Empty;
         public double CantidadAsignada { get; set; }
         public string Unidad { get; set; } = string.Empty;
         public double DeficitCalculado { get; set; }

@@ -55,6 +55,8 @@ namespace ProyectoCatedra.Servicios
                 Nombre = p.Nombre,
                 IdCategoria = p.IdCategoria,
                 Stock = p.Stock,
+                MaximoPorEntrega = p.MaximoPorEntrega,
+                DiasReposicion = p.DiasReposicion,
                 NombreCategoria = p.NombreCategoria
             };
 
@@ -65,14 +67,18 @@ namespace ProyectoCatedra.Servicios
                 using (var conexion = conexionDB.ObtenerConexion())
                 {
                     conexion.Open();
-                    string sqlIns = "INSERT INTO Productos (SKU, Nombre, IdCategoria, Stock) VALUES (@sku, @nombre, @idCat, @stock)";
+                    string sqlIns = @"INSERT INTO Productos (SKU, Nombre, IdCategoria, Stock, MaximoPorEntrega, DiasReposicion)
+                                      VALUES (@sku, @nombre, @idCat, @stock, @max, @dias);
+                                      SELECT last_insert_rowid();";
                     using (var cmdIns = new SQLiteCommand(sqlIns, conexion))
                     {
                         cmdIns.Parameters.AddWithValue("@sku", nuevo.SKU);
                         cmdIns.Parameters.AddWithValue("@nombre", nuevo.Nombre);
                         cmdIns.Parameters.AddWithValue("@idCat", nuevo.IdCategoria);
                         cmdIns.Parameters.AddWithValue("@stock", nuevo.Stock);
-                        cmdIns.ExecuteNonQuery();
+                        cmdIns.Parameters.AddWithValue("@max", (object?)nuevo.MaximoPorEntrega ?? DBNull.Value);
+                        cmdIns.Parameters.AddWithValue("@dias", (object?)nuevo.DiasReposicion ?? DBNull.Value);
+                        nuevo.Id = Convert.ToInt32((long)cmdIns.ExecuteScalar());
                     }
                 }
             }
@@ -94,12 +100,16 @@ namespace ProyectoCatedra.Servicios
                 Nombre = existente.Nombre,
                 IdCategoria = existente.IdCategoria,
                 Stock = existente.Stock,
+                MaximoPorEntrega = existente.MaximoPorEntrega,
+                DiasReposicion = existente.DiasReposicion,
                 NombreCategoria = existente.NombreCategoria
             };
 
             existente.Nombre = p.Nombre;
             existente.IdCategoria = p.IdCategoria;
             existente.Stock = p.Stock;
+            existente.MaximoPorEntrega = p.MaximoPorEntrega;
+            existente.DiasReposicion = p.DiasReposicion;
             existente.NombreCategoria = p.NombreCategoria;
 
             try
@@ -107,12 +117,20 @@ namespace ProyectoCatedra.Servicios
                 using (var conexion = conexionDB.ObtenerConexion())
                 {
                     conexion.Open();
-                    string sql = "UPDATE Productos SET Nombre = @nombre, IdCategoria = @idCat, Stock = @stock WHERE SKU = @sku";
+                    string sql = @"UPDATE Productos
+                                   SET Nombre = @nombre,
+                                       IdCategoria = @idCat,
+                                       Stock = @stock,
+                                       MaximoPorEntrega = @max,
+                                       DiasReposicion = @dias
+                                   WHERE SKU = @sku";
                     using (var comando = new SQLiteCommand(sql, conexion))
                     {
                         comando.Parameters.AddWithValue("@nombre", p.Nombre);
                         comando.Parameters.AddWithValue("@idCat", p.IdCategoria);
                         comando.Parameters.AddWithValue("@stock", p.Stock);
+                        comando.Parameters.AddWithValue("@max", (object?)p.MaximoPorEntrega ?? DBNull.Value);
+                        comando.Parameters.AddWithValue("@dias", (object?)p.DiasReposicion ?? DBNull.Value);
                         comando.Parameters.AddWithValue("@sku", p.SKU);
                         comando.ExecuteNonQuery();
                     }
@@ -123,6 +141,8 @@ namespace ProyectoCatedra.Servicios
                 existente.Nombre = respaldo.Nombre;
                 existente.IdCategoria = respaldo.IdCategoria;
                 existente.Stock = respaldo.Stock;
+                existente.MaximoPorEntrega = respaldo.MaximoPorEntrega;
+                existente.DiasReposicion = respaldo.DiasReposicion;
                 existente.NombreCategoria = respaldo.NombreCategoria;
                 throw;
             }
@@ -175,6 +195,33 @@ namespace ProyectoCatedra.Servicios
             return indicePorSku;
         }
 
+        public ListaEnlazada ListarPorCategoria(int idCategoria)
+        {
+            ListaEnlazada lista = new ListaEnlazada();
+            var todos = ListarTodos();
+            for (int i = 0; i < todos.Conteo(); i++)
+            {
+                var p = (Producto?)todos.Obtener(i);
+                if (p != null && p.IdCategoria == idCategoria) lista.Agregar(p);
+            }
+            return lista;
+        }
+
+        public double ObtenerStockProducto(int productoId)
+        {
+            using (var conexion = conexionDB.ObtenerConexion())
+            {
+                conexion.Open();
+                string sql = "SELECT Stock FROM Productos WHERE Id = @id";
+                using (var comando = new SQLiteCommand(sql, conexion))
+                {
+                    comando.Parameters.AddWithValue("@id", productoId);
+                    var resultado = comando.ExecuteScalar();
+                    return resultado == null || resultado == DBNull.Value ? 0 : Convert.ToDouble(resultado);
+                }
+            }
+        }
+
         private void CargarDesdeBase()
         {
             using (var conexion = conexionDB.ObtenerConexion())
@@ -188,10 +235,13 @@ namespace ProyectoCatedra.Servicios
                     {
                         var producto = new Producto
                         {
+                            Id = Convert.ToInt32(lector["Id"]),
                             SKU = lector["SKU"]?.ToString() ?? string.Empty,
                             Nombre = lector["Nombre"]?.ToString() ?? string.Empty,
                             IdCategoria = Convert.ToInt32(lector["IdCategoria"]),
                             Stock = Convert.ToDouble(lector["Stock"]),
+                            MaximoPorEntrega = lector["MaximoPorEntrega"] == DBNull.Value ? null : Convert.ToDouble(lector["MaximoPorEntrega"]),
+                            DiasReposicion = lector["DiasReposicion"] == DBNull.Value ? null : Convert.ToInt32(lector["DiasReposicion"]),
                             NombreCategoria = lector["CatNombre"]?.ToString() ?? string.Empty
                         };
 

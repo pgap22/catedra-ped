@@ -36,6 +36,8 @@ namespace ProyectoCatedra.Datos
                                             IdCategoria INTEGER,
                                             Stock REAL DEFAULT 0,
                                             IdUnidad INTEGER,
+                                            MaximoPorEntrega REAL,
+                                            DiasReposicion INTEGER,
                                             FOREIGN KEY(IdCategoria) REFERENCES Categorias(Id),
                                             FOREIGN KEY(IdUnidad) REFERENCES UnidadesMedida(Id)
                                           );";
@@ -58,6 +60,8 @@ namespace ProyectoCatedra.Datos
                 // Intentar añadir columnas a tablas antiguas si la BD ya existía
                 try { new SQLiteCommand("ALTER TABLE Beneficiarios ADD COLUMN FechaRegistro DATETIME DEFAULT CURRENT_TIMESTAMP;", conexion).ExecuteNonQuery(); } catch { /* Ya existe */ }
                 try { new SQLiteCommand("ALTER TABLE Productos ADD COLUMN IdUnidad INTEGER REFERENCES UnidadesMedida(Id);", conexion).ExecuteNonQuery(); } catch { /* Ya existe */ }
+                try { new SQLiteCommand("ALTER TABLE Productos ADD COLUMN MaximoPorEntrega REAL;", conexion).ExecuteNonQuery(); } catch { /* Ya existe */ }
+                try { new SQLiteCommand("ALTER TABLE Productos ADD COLUMN DiasReposicion INTEGER;", conexion).ExecuteNonQuery(); } catch { /* Ya existe */ }
 
                 // Crear nuevas tablas para la Fase 1
                 string sqlTasa = @"CREATE TABLE IF NOT EXISTS TasaConsumo (
@@ -75,19 +79,32 @@ namespace ProyectoCatedra.Datos
                                     );";
                 string sqlDetalle = @"CREATE TABLE IF NOT EXISTS OrdenDetalle (
                                          Id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                                         OrdenId INTEGER, 
-                                         BeneficiarioId INTEGER, 
-                                         CategoriaId INTEGER, 
-                                         CantidadAsignada REAL NOT NULL, 
-                                         DeficitCalculado REAL,
-                                         FOREIGN KEY(OrdenId) REFERENCES Orden(Id),
-                                         FOREIGN KEY(BeneficiarioId) REFERENCES Beneficiarios(Id),
-                                         FOREIGN KEY(CategoriaId) REFERENCES Categorias(Id)
-                                      );";
+                                          OrdenId INTEGER, 
+                                          BeneficiarioId INTEGER, 
+                                          CategoriaId INTEGER, 
+                                          ProductoId INTEGER,
+                                          CantidadAsignada REAL NOT NULL, 
+                                          DeficitCalculado REAL,
+                                          FOREIGN KEY(OrdenId) REFERENCES Orden(Id),
+                                          FOREIGN KEY(BeneficiarioId) REFERENCES Beneficiarios(Id),
+                                          FOREIGN KEY(CategoriaId) REFERENCES Categorias(Id),
+                                          FOREIGN KEY(ProductoId) REFERENCES Productos(Id)
+                                       );";
+                string sqlPack = @"CREATE TABLE IF NOT EXISTS CategoriaPackDetalle (
+                                      Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                      CategoriaId INTEGER NOT NULL,
+                                      ProductoId INTEGER NOT NULL,
+                                      Porcentaje REAL NOT NULL,
+                                      FOREIGN KEY(CategoriaId) REFERENCES Categorias(Id),
+                                      FOREIGN KEY(ProductoId) REFERENCES Productos(Id),
+                                      UNIQUE(CategoriaId, ProductoId)
+                                   );";
 
                 using (var cmd = new SQLiteCommand(sqlTasa, conexion)) cmd.ExecuteNonQuery();
                 using (var cmd = new SQLiteCommand(sqlOrden, conexion)) cmd.ExecuteNonQuery();
                 using (var cmd = new SQLiteCommand(sqlDetalle, conexion)) cmd.ExecuteNonQuery();
+                try { new SQLiteCommand("ALTER TABLE OrdenDetalle ADD COLUMN ProductoId INTEGER REFERENCES Productos(Id);", conexion).ExecuteNonQuery(); } catch { /* Ya existe */ }
+                using (var cmd = new SQLiteCommand(sqlPack, conexion)) cmd.ExecuteNonQuery();
             }
         }
 

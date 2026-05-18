@@ -33,9 +33,15 @@ Alternativa considerada: calcular déficit por producto. Se descarta porque obli
 
 ### Usar porcentajes por producto en el pack
 
-Cada categoría tendrá una tabla de detalle de pack con producto y porcentaje. La suma válida para una categoría debe ser 100% para que se use automáticamente.
+Cada categoría tendrá una tabla de detalle de pack con producto y porcentaje. La suma válida para una categoría debe ser 100% para guardarse y para usarse automáticamente. La pantalla de configuración debe mostrar el total actual y mantener bloqueado el guardado mientras el total sea diferente de 100%.
 
 Alternativa considerada: cantidades fijas por familia. Se descarta porque no escala bien con familias de diferente tamaño ni con déficits variables.
+
+### Redondear siempre hacia abajo al producto real
+
+Cuando el porcentaje produzca decimales, la distribución usará `floor` para entregar solo unidades enteras. El residuo decimal no se reasigna automáticamente, porque eso podría romper la proporción del pack o entregar cantidades físicas no defendibles.
+
+Alternativa considerada: repartir el residuo al producto con mayor porcentaje. Se descarta para mantener la regla simple, auditable y fácil de explicar en defensa.
 
 ### Guardar producto específico en `OrdenDetalle`
 
@@ -72,7 +78,8 @@ Esto evita casos engañosos como cubrir arroz faltante con azúcar sin que el pa
 ## Risks / Trade-offs
 
 - Mayor cantidad de filas en distribución e historial -> Mantener columnas claras y filtros actuales para beneficiario/categoría.
-- Packs mal configurados con porcentajes que no suman 100 -> Validar configuración antes de generar propuesta y mostrar mensaje claro.
+- Packs mal configurados con porcentajes que no suman 100 -> Bloquear guardado en la UI de configuración y volver a validar antes de generar propuesta.
+- Cantidades con decimales al aplicar porcentajes -> Redondear hacia abajo y aceptar que el total físico entregado puede ser menor que la cuota teórica de categoría.
 - Stock insuficiente en un producto del pack -> Asignar solo disponible y explicar en cálculo que hubo faltante por producto.
 - Historial antiguo sin producto específico -> Mostrarlo como entrega histórica por categoría cuando `ProductoId` esté vacío.
 - Edición manual puede romper proporciones del pack -> Permitir edición por fila de producto, pero validar stock por producto y categoría antes de confirmar.
@@ -91,5 +98,4 @@ Rollback: si se requiere revertir durante desarrollo, las columnas nuevas pueden
 
 ## Open Questions
 
-- Si un pack no suma 100%, ¿se debe bloquear la distribución o solo excluir esa categoría? Recomendación inicial: bloquear esa categoría con mensaje claro.
 - ¿La edición manual debe permitir cambiar producto o solo cantidad? Recomendación inicial: solo cantidad para mantener simple el primer alcance.

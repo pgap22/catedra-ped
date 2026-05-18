@@ -8,6 +8,7 @@ namespace ProyectoCatedra.Modelos
         public string NombreBeneficiario { get; set; } = "";
         public int CategoriaId { get; set; }
         public string NombreCategoria { get; set; } = "";
+        public int ProductoId { get; set; }
         public double CantidadAsignada { get; set; }
         public double DeficitCalculado { get; set; }
         public string ExplicacionCalculo { get; set; } = "";

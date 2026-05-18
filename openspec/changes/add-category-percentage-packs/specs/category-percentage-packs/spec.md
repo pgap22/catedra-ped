@@ -9,7 +9,11 @@ The system SHALL allow each category to define a delivery pack composed of produ
 
 #### Scenario: Invalid pack total is rejected
 - **WHEN** a category pack has percentages that do not sum to 100
-- **THEN** the system prevents using that pack for automatic distribution and shows a clear validation message
+- **THEN** the system prevents saving or using that pack and shows a clear validation message
+
+#### Scenario: Save button requires exact 100 percent
+- **WHEN** the administrator configures a category pack and the total is below or above 100 percent
+- **THEN** the pack configuration UI keeps the save action disabled and shows the current total
 
 ### Requirement: Split category assignment into product lines
 The system SHALL convert each assigned category quantity into product-specific delivery lines according to the configured pack percentages.
@@ -21,6 +25,10 @@ The system SHALL convert each assigned category quantity into product-specific d
 #### Scenario: Product line quantities are whole units
 - **WHEN** a calculated product quantity contains decimals
 - **THEN** the system floors the product quantity before adding it to the proposal
+
+#### Scenario: Decimal remainder is not delivered
+- **WHEN** floor rounding leaves a decimal remainder after splitting a category assignment
+- **THEN** the system does not deliver that remainder because physical product quantities must be whole units
 
 ### Requirement: Respect product stock during pack splitting
 The system SHALL never propose more of a product than its available stock.

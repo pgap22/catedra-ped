@@ -16,6 +16,8 @@ namespace ProyectoCatedra
         private TextBox txtSKU = new TextBox();
         private TextBox txtNombre = new TextBox();
         private NumericUpDown numStock = new NumericUpDown();
+        private NumericUpDown numMaxEntrega = new NumericUpDown();
+        private NumericUpDown numDiasReposicion = new NumericUpDown();
         private ComboBox cbCat = new ComboBox();
         private DataGridView dgv = new DataGridView();
         private Button btnGuardar = new Button();
@@ -51,11 +53,20 @@ namespace ProyectoCatedra
             Label l3 = new Label { Text = "Categoría:", Location = new Point(270, 45), AutoSize = true };
             cbCat.Location = new Point(270, 65); cbCat.Size = new Size(120, 20); cbCat.DropDownStyle = ComboBoxStyle.DropDownList;
             Label l4 = new Label { Text = "Stock:", Location = new Point(400, 45), AutoSize = true };
-            numStock.Location = new Point(400, 65); numStock.Size = new Size(100, 20);
+            numStock.Location = new Point(400, 65); numStock.Size = new Size(80, 20);
             numStock.Maximum = decimal.MaxValue;
             numStock.DecimalPlaces = 2;
 
-            btnGuardar.Text = "Guardar"; btnGuardar.Location = new Point(470, 63); btnGuardar.Size = new Size(80, 25);
+            Label l5 = new Label { Text = "Máx. entrega (0 = sin regla):", Location = new Point(490, 45), AutoSize = true };
+            numMaxEntrega.Location = new Point(490, 65); numMaxEntrega.Size = new Size(90, 20);
+            numMaxEntrega.Maximum = decimal.MaxValue;
+            numMaxEntrega.DecimalPlaces = 2;
+
+            Label l6 = new Label { Text = "Días repos. (0 = sin regla):", Location = new Point(590, 45), AutoSize = true };
+            numDiasReposicion.Location = new Point(590, 65); numDiasReposicion.Size = new Size(90, 20);
+            numDiasReposicion.Maximum = 3650;
+
+            btnGuardar.Text = "Guardar"; btnGuardar.Location = new Point(690, 63); btnGuardar.Size = new Size(80, 25);
             btnGuardar.Click += (s, e) =>
             {
                 if (cbCat.SelectedItem == null || string.IsNullOrWhiteSpace(txtNombre.Text))
@@ -69,6 +80,8 @@ namespace ProyectoCatedra
                     string nombreNuevo = txtNombre.Text.Trim();
                     int idCategoria = ((Categoria)cbCat.SelectedItem).Id;
                     double stockNuevo = (double)numStock.Value;
+                    double? maxEntrega = numMaxEntrega.Value > 0 ? (double)numMaxEntrega.Value : null;
+                    int? diasReposicion = numDiasReposicion.Value > 0 ? (int)numDiasReposicion.Value : null;
 
                     if (productoSeleccionado != null)
                     {
@@ -76,6 +89,8 @@ namespace ProyectoCatedra
                         productoSeleccionado.Nombre = nombreNuevo;
                         productoSeleccionado.IdCategoria = idCategoria;
                         productoSeleccionado.Stock = stockNuevo;
+                        productoSeleccionado.MaximoPorEntrega = maxEntrega;
+                        productoSeleccionado.DiasReposicion = diasReposicion;
 
                         servicio.Actualizar(productoSeleccionado);
                         undoStack.Empujar(new AccionUndo(TipoAccion.Editar, "Productos", anterior));
@@ -100,7 +115,9 @@ namespace ProyectoCatedra
                                     SKU = existenteSku.SKU,
                                     Nombre = existenteSku.Nombre,
                                     IdCategoria = existenteSku.IdCategoria,
-                                    Stock = stockNuevo
+                                    Stock = stockNuevo,
+                                    MaximoPorEntrega = existenteSku.MaximoPorEntrega,
+                                    DiasReposicion = existenteSku.DiasReposicion
                                 };
                                 servicio.GuardarOSumarStock(suma);
                                 undoStack.Empujar(new AccionUndo(TipoAccion.Editar, "Productos", anterior));
@@ -109,7 +126,7 @@ namespace ProyectoCatedra
                             else
                             {
                                 string skuNuevo = ObtenerSiguienteSKU();
-                                var pNuevo = new Producto { SKU = skuNuevo, Nombre = nombreNuevo, IdCategoria = idCategoria, Stock = stockNuevo };
+                                var pNuevo = new Producto { SKU = skuNuevo, Nombre = nombreNuevo, IdCategoria = idCategoria, Stock = stockNuevo, MaximoPorEntrega = maxEntrega, DiasReposicion = diasReposicion };
                                 servicio.GuardarOSumarStock(pNuevo);
                                 undoStack.Empujar(new AccionUndo(TipoAccion.Insertar, "Productos", pNuevo));
                                 MessageBox.Show("El SKU ya estaba en uso. Se generó un SKU nuevo.", "SKU reasignado", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -117,7 +134,7 @@ namespace ProyectoCatedra
                         }
                         else
                         {
-                            var p = new Producto { SKU = skuIngresado, Nombre = nombreNuevo, IdCategoria = idCategoria, Stock = stockNuevo };
+                            var p = new Producto { SKU = skuIngresado, Nombre = nombreNuevo, IdCategoria = idCategoria, Stock = stockNuevo, MaximoPorEntrega = maxEntrega, DiasReposicion = diasReposicion };
                             servicio.GuardarOSumarStock(p);
                             undoStack.Empujar(new AccionUndo(TipoAccion.Insertar, "Productos", p));
                         }
@@ -135,7 +152,7 @@ namespace ProyectoCatedra
             Button btnBuscar = new Button { Text = "Buscar", Location = new Point(280, 103), Size = new Size(80, 25) };
             btnBuscar.Click += (s, e) => Cargar(txtBuscar.Text);
             
-            btnEliminar.Text = "Eliminar"; btnEliminar.Location = new Point(560, 63); btnEliminar.Size = new Size(80, 25); btnEliminar.Enabled = false;
+            btnEliminar.Text = "Eliminar"; btnEliminar.Location = new Point(690, 95); btnEliminar.Size = new Size(80, 25); btnEliminar.Enabled = false;
             btnEliminar.Click += (s, e) =>
             {
                 if (productoSeleccionado == null) return;
@@ -164,6 +181,8 @@ namespace ProyectoCatedra
             dgv.Columns.Add("Nombre", "Nombre");
             dgv.Columns.Add("Categoria", "Categoría");
             dgv.Columns.Add("Stock", "Stock");
+            dgv.Columns.Add("MaxEntrega", "Máx. entrega");
+            dgv.Columns.Add("DiasReposicion", "Días reposición");
             dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dgv.CellClick += (s, e) => {
                 if (e.RowIndex >= 0) {
@@ -176,6 +195,8 @@ namespace ProyectoCatedra
                         txtNombre.Text = producto.Nombre;
                         SeleccionarCategoriaPorId(producto.IdCategoria);
                         numStock.Value = (decimal)producto.Stock;
+                        numMaxEntrega.Value = producto.MaximoPorEntrega.HasValue ? (decimal)producto.MaximoPorEntrega.Value : 0;
+                        numDiasReposicion.Value = producto.DiasReposicion.HasValue ? producto.DiasReposicion.Value : 0;
                         btnGuardar.Text = "Guardar";
                         btnEliminar.Enabled = true;
                     }
@@ -289,7 +310,7 @@ namespace ProyectoCatedra
             btnPlantilla.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnPlantilla.Click += (s, e) => ManejadorCSV.GuardarPlantillaConDialogo("plantilla_productos.csv", "SKU,Nombre,NombreCategoria,Stock\nSKU001,Arroz,Granos Basicos,50\nSKU002,Leche,Lacteos,100");
 
-            this.Controls.AddRange(new Control[] { btnNuevo, l1, txtSKU, l2, txtNombre, l3, cbCat, l4, numStock, btnGuardar, btnEliminar, txtBuscar, btnBuscar, btnUndo, dgv, btnImp, btnPlantilla });
+            this.Controls.AddRange(new Control[] { btnNuevo, l1, txtSKU, l2, txtNombre, l3, cbCat, l4, numStock, l5, numMaxEntrega, l6, numDiasReposicion, btnGuardar, btnEliminar, txtBuscar, btnBuscar, btnUndo, dgv, btnImp, btnPlantilla });
             AplicarEscaladoDpi();
         }
 
@@ -321,7 +342,7 @@ namespace ProyectoCatedra
                 {
                     if (!string.IsNullOrEmpty(filtro) && !p.Nombre.ToLower().Contains(filtro) && !p.SKU.ToLower().Contains(filtro)) continue;
 
-                    int index = dgv.Rows.Add(p.SKU, p.Nombre, p.NombreCategoria, p.Stock); 
+                    int index = dgv.Rows.Add(p.SKU, p.Nombre, p.NombreCategoria, p.Stock, p.MaximoPorEntrega?.ToString() ?? "", p.DiasReposicion?.ToString() ?? ""); 
                     if (p.Stock <= 5)
                     {
                         dgv.Rows[index].DefaultCellStyle.BackColor = Color.LightCoral;
@@ -335,6 +356,8 @@ namespace ProyectoCatedra
             txtSKU.Text = "(Auto-generado)";
             txtNombre.Clear();
             numStock.Value = 0;
+            numMaxEntrega.Value = 0;
+            numDiasReposicion.Value = 0;
             cbCat.SelectedIndex = -1;
             btnEliminar.Enabled = false;
             btnGuardar.Text = "Guardar";
@@ -415,6 +438,8 @@ namespace ProyectoCatedra
                 Nombre = p.Nombre,
                 IdCategoria = p.IdCategoria,
                 Stock = p.Stock,
+                MaximoPorEntrega = p.MaximoPorEntrega,
+                DiasReposicion = p.DiasReposicion,
                 NombreCategoria = p.NombreCategoria
             };
         }

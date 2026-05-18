@@ -11,7 +11,7 @@ namespace ProyectoCatedra
     {
         private DistribucionServicio servicio;
         private Pila undoStack; // Pila para deshacer
-        private TablaHash stockPorCategoria = new TablaHash(50); // Para validar sobregiro
+        private TablaHash stockPorProducto = new TablaHash(100); // Para validar sobregiro por producto
         
         private DataGridView dgv = new DataGridView();
         private Button btnGenerar = new Button();
@@ -90,7 +90,7 @@ namespace ProyectoCatedra
             dgv.Columns["Beneficiario"].ReadOnly = true;
             dgv.Columns.Add("Categoria", "Categoría");
             dgv.Columns["Categoria"].ReadOnly = true;
-            dgv.Columns.Add("Producto", "Producto Sugerido");
+            dgv.Columns.Add("Producto", "Producto");
             dgv.Columns["Producto"].ReadOnly = true;
             dgv.Columns.Add("SKU", "SKU");
             dgv.Columns["SKU"].ReadOnly = true;
@@ -103,6 +103,7 @@ namespace ProyectoCatedra
             // Hidden columns for IDs
             dgv.Columns.Add("BId", "BId"); dgv.Columns["BId"].Visible = false;
             dgv.Columns.Add("CId", "CId"); dgv.Columns["CId"].Visible = false;
+            dgv.Columns.Add("PId", "PId"); dgv.Columns["PId"].Visible = false;
             dgv.Columns.Add("Explicacion", "Explicacion"); dgv.Columns["Explicacion"].Visible = false;
 
             dgv.CellBeginEdit += Dgv_CellBeginEdit;
@@ -197,22 +198,30 @@ namespace ProyectoCatedra
                 categoriaIdFiltro = catObj.Id;
             }
 
-            propuestaActual = servicio.GenerarPropuestaDistribucion(categoriaIdFiltro);
+            try
+            {
+                propuestaActual = servicio.GenerarPropuestaDistribucion(categoriaIdFiltro);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("No se pudo generar la propuesta: " + ex.Message, "Distribución", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
             if (propuestaActual.Conteo() == 0)
             {
-                MessageBox.Show("No hay distribuciones sugeridas (Falta inventario, beneficiarios activos o configuración de tasas).");
+                MessageBox.Show("No hay distribuciones sugeridas (falta inventario, beneficiarios activos, tasas o packs de categoría configurados al 100%).");
                 dgv.Rows.Clear();
                 return;
             }
 
-            // Cargar stock real al momento de generar la propuesta
-            stockPorCategoria = new TablaHash(50);
-            var categorias = categoriaServicio.ListarTodas();
-            for (int i = 0; i < categorias.Conteo(); i++)
+            stockPorProducto = new TablaHash(100);
+            for (int i = 0; i < propuestaActual.Conteo(); i++)
             {
-                var cat = (ProyectoCatedra.Modelos.Categoria)categorias.Obtener(i)!;
-                double stock = servicio.ObtenerStockTotalCategoria(cat.Id);
-                stockPorCategoria.Insertar(cat.Id.ToString(), stock);
+                var det = (OrdenDetalle)propuestaActual.Obtener(i)!;
+                if (det.ProductoId > 0)
+                {
+                    stockPorProducto.Insertar(det.ProductoId.ToString(), servicio.ObtenerStockProducto(det.ProductoId));
+                }
             }
 
             MostrarPropuesta();
@@ -244,7 +253,7 @@ namespace ProyectoCatedra
                 if (categoriaIdFiltro > 0 && det.CategoriaId != categoriaIdFiltro) continue;
                 if (!string.IsNullOrEmpty(filtroNom) && !det.NombreBeneficiario.ToLower().Contains(filtroNom)) continue;
 
-                dgv.Rows.Add(det.NombreBeneficiario, det.NombreCategoria, det.NombreProductoSugerido, det.SKUProductoSugerido, det.CantidadAsignada, det.NombreUnidadMedida, det.DeficitCalculado, det.BeneficiarioId, det.CategoriaId, det.ExplicacionCalculo);
+                dgv.Rows.Add(det.NombreBeneficiario, det.NombreCategoria, det.NombreProductoSugerido, det.SKUProductoSugerido, det.CantidadAsignada, det.NombreUnidadMedida, det.DeficitCalculado, det.BeneficiarioId, det.CategoriaId, det.ProductoId, det.ExplicacionCalculo);
             }
 
             btnConfirmar.Enabled = dgv.Rows.Count > 0;
@@ -276,25 +285,25 @@ namespace ProyectoCatedra
 
                 if (nuevoValor > valorAnteriorCelda)
                 {
-                    string idCat = dgv.Rows[e.RowIndex].Cells["CId"].Value.ToString() ?? "";
-                    
-                    double stockDisponible = (double?)stockPorCategoria.Buscar(idCat) ?? 0;
-                    double totalAsignadoCategoria = 0;
-                    
+                    string idProducto = dgv.Rows[e.RowIndex].Cells["PId"].Value.ToString() ?? "";
+                     
+                    double stockDisponible = (double?)stockPorProducto.Buscar(idProducto) ?? 0;
+                    double totalAsignadoProducto = 0;
+                     
                     // Sumar todo lo asignado en la propuesta
                     for (int i = 0; i < propuestaActual!.Conteo(); i++)
                     {
                         var det = (OrdenDetalle)propuestaActual.Obtener(i)!;
-                        if (det.CategoriaId.ToString() == idCat)
+                        if (det.ProductoId.ToString() == idProducto)
                         {
-                            totalAsignadoCategoria += det.CantidadAsignada;
+                            totalAsignadoProducto += det.CantidadAsignada;
                         }
                     }
 
                     double diferencia = nuevoValor - valorAnteriorCelda;
-                    if (totalAsignadoCategoria + diferencia > stockDisponible)
+                    if (totalAsignadoProducto + diferencia > stockDisponible)
                     {
-                        MessageBox.Show($"No hay suficiente inventario para esa categoría.\n\nDisponible total: {stockDisponible}\nAsignado total: {totalAsignadoCategoria}\n\nNo se puede aumentar más.", "Límite de Stock", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        MessageBox.Show($"No hay suficiente inventario para ese producto.\n\nDisponible total: {stockDisponible}\nAsignado total: {totalAsignadoProducto}\n\nNo se puede aumentar más.", "Límite de Stock", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         dgv.Rows[e.RowIndex].Cells[e.ColumnIndex].Value = valorAnteriorCelda;
                         return;
                     }
@@ -307,11 +316,12 @@ namespace ProyectoCatedra
                     // Actualizar propuesta
                     int idBen = Convert.ToInt32(dgv.Rows[e.RowIndex].Cells["BId"].Value);
                     int idCat = Convert.ToInt32(dgv.Rows[e.RowIndex].Cells["CId"].Value);
-                    
+                    int idProducto = Convert.ToInt32(dgv.Rows[e.RowIndex].Cells["PId"].Value);
+                     
                     for (int i = 0; i < propuestaActual!.Conteo(); i++)
                     {
                         var det = (OrdenDetalle)propuestaActual.Obtener(i)!;
-                        if (det.BeneficiarioId == idBen && det.CategoriaId == idCat)
+                        if (det.BeneficiarioId == idBen && det.CategoriaId == idCat && det.ProductoId == idProducto)
                         {
                             det.CantidadAsignada = nuevoValor;
                             break;
@@ -323,6 +333,9 @@ namespace ProyectoCatedra
                     {
                         Fila = e.RowIndex,
                         Columna = e.ColumnIndex,
+                        BeneficiarioId = idBen,
+                        CategoriaId = idCat,
+                        ProductoId = idProducto,
                         ValorAnterior = valorAnteriorCelda
                     };
                     undoStack.Empujar(accion);
@@ -350,6 +363,7 @@ namespace ProyectoCatedra
             {
                 var accion = (AccionEdicionCelda)accionObj;
                 dgv.Rows[accion.Fila].Cells[accion.Columna].Value = accion.ValorAnterior;
+                ActualizarCantidadPropuesta(accion.BeneficiarioId, accion.CategoriaId, accion.ProductoId, accion.ValorAnterior);
             }
             if (undoStack.EstaVacia()) btnDeshacer.Enabled = false;
         }
@@ -370,6 +384,7 @@ namespace ProyectoCatedra
                         {
                             BeneficiarioId = Convert.ToInt32(dgv.Rows[i].Cells["BId"].Value),
                             CategoriaId = Convert.ToInt32(dgv.Rows[i].Cells["CId"].Value),
+                            ProductoId = Convert.ToInt32(dgv.Rows[i].Cells["PId"].Value),
                             CantidadAsignada = asignado,
                             DeficitCalculado = Convert.ToDouble(dgv.Rows[i].Cells["Deficit"].Value)
                         });
@@ -393,7 +408,24 @@ namespace ProyectoCatedra
         {
             public int Fila { get; set; }
             public int Columna { get; set; }
+            public int BeneficiarioId { get; set; }
+            public int CategoriaId { get; set; }
+            public int ProductoId { get; set; }
             public double ValorAnterior { get; set; }
+        }
+
+        private void ActualizarCantidadPropuesta(int beneficiarioId, int categoriaId, int productoId, double cantidad)
+        {
+            if (propuestaActual == null) return;
+            for (int i = 0; i < propuestaActual.Conteo(); i++)
+            {
+                var det = (OrdenDetalle)propuestaActual.Obtener(i)!;
+                if (det.BeneficiarioId == beneficiarioId && det.CategoriaId == categoriaId && det.ProductoId == productoId)
+                {
+                    det.CantidadAsignada = cantidad;
+                    return;
+                }
+            }
         }
     }
 }

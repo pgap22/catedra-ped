@@ -59,6 +59,7 @@ namespace ProyectoCatedra
             dgv.Columns.Add("Fecha", "Fecha");
             dgv.Columns.Add("Beneficiario", "Beneficiario");
             dgv.Columns.Add("Categoria", "Categoría");
+            dgv.Columns.Add("Producto", "Producto");
             dgv.Columns.Add("Deficit", "Déficit Previo");
             dgv.Columns.Add("Asignado", "Asignado");
             dgv.Columns.Add("Unidad", "Unidad");
@@ -88,6 +89,7 @@ namespace ProyectoCatedra
                     reg.Fecha.ToString("yyyy-MM-dd HH:mm"),
                     reg.Beneficiario,
                     reg.Categoria,
+                    string.IsNullOrWhiteSpace(reg.Producto) ? "(histórico por categoría)" : reg.Producto,
                     Math.Round(reg.DeficitCalculado, 2),
                     Math.Floor(reg.CantidadAsignada),
                     reg.Unidad

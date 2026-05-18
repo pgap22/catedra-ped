@@ -1,0 +1,11 @@
+# Build outputs
+bin/
+obj/
+
+# Local database
+donaciones.db
+
+# Visual Studio / Rider
+.vs/
+*.user
+*.suo

@@ -42,9 +42,11 @@ namespace ProyectoCatedra
             ToolStripMenuItem itemCategorias = new ToolStripMenuItem("Gestionar Categorías");
             ToolStripMenuItem itemUnidades = new ToolStripMenuItem("Gestionar Unidades");
             ToolStripMenuItem itemProductos = new ToolStripMenuItem("Gestionar Productos");
+            ToolStripMenuItem itemPacks = new ToolStripMenuItem("Configurar Packs por Categoría");
             menuInventario.DropDownItems.Add(itemCategorias);
             menuInventario.DropDownItems.Add(itemUnidades);
             menuInventario.DropDownItems.Add(itemProductos);
+            menuInventario.DropDownItems.Add(itemPacks);
 
             ToolStripMenuItem menuFamilias = new ToolStripMenuItem("Beneficiarios");
             ToolStripMenuItem itemBeneficiarios = new ToolStripMenuItem("Padrón de Familias");
@@ -71,6 +73,7 @@ namespace ProyectoCatedra
             itemCategorias.Click += (s, e) => { var f = new FormCategorias(); f.Show(); };
             itemUnidades.Click += (s, e) => { var f = new FormUnidades(); f.Show(); };
             itemProductos.Click += (s, e) => { var f = new FormProductos(); f.Show(); };
+            itemPacks.Click += (s, e) => { var f = new FormConfigurarPacks(); f.Show(); };
             itemBeneficiarios.Click += (s, e) => { var f = new FormBeneficiarios(); f.Show(); };
             itemTasas.Click += (s, e) => { var f = new FormTasaConsumo(); f.Show(); };
             itemDistribucion.Click += (s, e) => { var f = new FormDistribucion(); f.Show(); };
