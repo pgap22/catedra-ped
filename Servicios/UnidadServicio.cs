@@ -53,7 +53,7 @@ namespace ProyectoCatedra.Servicios
             {
                 conexion.Open();
                 string sql = "SELECT * FROM UnidadesMedida ORDER BY Nombre ASC";
-                using (var cmd = new SQLiteCommand(sql, conexion)) { using (var lector = cmd.ExecuteReader()) { while (lector.Read()) lista.Agregar(new UnidadMedida { Id = Convert.ToInt32(lector["Id"]), Nombre = lector["Nombre"].ToString(), Tipo = lector["Tipo"].ToString() }); } }
+                using (var cmd = new SQLiteCommand(sql, conexion)) { using (var lector = cmd.ExecuteReader()) { while (lector.Read()) lista.Agregar(new UnidadMedida { Id = Convert.ToInt32(lector["Id"]), Nombre = lector["Nombre"]?.ToString() ?? "", Tipo = lector["Tipo"]?.ToString() ?? "" }); } }
             }
             return lista;
         }
@@ -80,7 +80,7 @@ namespace ProyectoCatedra.Servicios
                 using (var cmd = new SQLiteCommand(sql, conexion))
                 {
                     cmd.Parameters.AddWithValue("@cat", idCat);
-                    using (var lector = cmd.ExecuteReader()) { while (lector.Read()) lista.Agregar(new UnidadMedida { Id = Convert.ToInt32(lector["Id"]), Nombre = lector["Nombre"].ToString(), Tipo = lector["Tipo"].ToString() }); }
+                    using (var lector = cmd.ExecuteReader()) { while (lector.Read()) lista.Agregar(new UnidadMedida { Id = Convert.ToInt32(lector["Id"]), Nombre = lector["Nombre"]?.ToString() ?? "", Tipo = lector["Tipo"]?.ToString() ?? "" }); }
                 }
             }
             return lista;

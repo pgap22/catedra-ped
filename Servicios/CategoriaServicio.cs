@@ -15,7 +15,7 @@ namespace ProyectoCatedra.Servicios
         {
             var hash = new TablaHash();
             var todas = ListarTodas();
-            for (int i = 0; i < todas.Conteo(); i++) { var c = (Categoria)todas.Obtener(i); hash.Insertar(c.Nombre.ToUpper(), c); }
+            for (int i = 0; i < todas.Conteo(); i++) { var c = (Categoria)todas.Obtener(i)!; hash.Insertar(c.Nombre.ToUpper(), c); }
             return hash.Buscar(nombre.ToUpper()) != null;
         }
 
@@ -70,7 +70,7 @@ namespace ProyectoCatedra.Servicios
                 {
                     using (var lector = comando.ExecuteReader())
                     {
-                        while (lector.Read()) lista.Agregar(new Categoria { Id = Convert.ToInt32(lector["Id"]), Nombre = lector["Nombre"].ToString() });
+                        while (lector.Read()) lista.Agregar(new Categoria { Id = Convert.ToInt32(lector["Id"]), Nombre = lector["Nombre"]?.ToString() ?? "" });
                     }
                 }
             }

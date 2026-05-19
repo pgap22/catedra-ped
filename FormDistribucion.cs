@@ -103,27 +103,27 @@ namespace ProyectoCatedra
             dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
             dgv.Columns.Add("Detalle", "Familia / Producto");
-            dgv.Columns["Detalle"].ReadOnly = true;
+            dgv.Columns["Detalle"]!.ReadOnly = true;
             dgv.Columns.Add("Categoria", "Categoría");
-            dgv.Columns["Categoria"].ReadOnly = true;
+            dgv.Columns["Categoria"]!.ReadOnly = true;
             dgv.Columns.Add("SKU", "SKU");
-            dgv.Columns["SKU"].ReadOnly = true;
+            dgv.Columns["SKU"]!.ReadOnly = true;
             dgv.Columns.Add("Asignado", "A entregar");
             dgv.Columns.Add("Unidad", "Unidad");
-            dgv.Columns["Unidad"].ReadOnly = true;
+            dgv.Columns["Unidad"]!.ReadOnly = true;
             dgv.Columns.Add("Deficit", "Déficit Calculado");
-            dgv.Columns["Deficit"].ReadOnly = true;
+            dgv.Columns["Deficit"]!.ReadOnly = true;
             
             // Hidden columns for IDs
-            dgv.Columns.Add("BId", "BId"); dgv.Columns["BId"].Visible = false;
-            dgv.Columns.Add("CId", "CId"); dgv.Columns["CId"].Visible = false;
-            dgv.Columns.Add("PId", "PId"); dgv.Columns["PId"].Visible = false;
-            dgv.Columns.Add("NivelVulnerabilidad", "NivelVulnerabilidad"); dgv.Columns["NivelVulnerabilidad"].Visible = false;
-            dgv.Columns.Add("Explicacion", "Explicacion"); dgv.Columns["Explicacion"].Visible = false;
-            dgv.Columns.Add("Beneficiario", "Beneficiario"); dgv.Columns["Beneficiario"].Visible = false;
-            dgv.Columns.Add("Vulnerabilidad", "Vulnerabilidad"); dgv.Columns["Vulnerabilidad"].Visible = false;
-            dgv.Columns.Add("Producto", "Producto"); dgv.Columns["Producto"].Visible = false;
-            dgv.Columns.Add("EsGrupo", "EsGrupo"); dgv.Columns["EsGrupo"].Visible = false;
+            dgv.Columns.Add("BId", "BId"); dgv.Columns["BId"]!.Visible = false;
+            dgv.Columns.Add("CId", "CId"); dgv.Columns["CId"]!.Visible = false;
+            dgv.Columns.Add("PId", "PId"); dgv.Columns["PId"]!.Visible = false;
+            dgv.Columns.Add("NivelVulnerabilidad", "NivelVulnerabilidad"); dgv.Columns["NivelVulnerabilidad"]!.Visible = false;
+            dgv.Columns.Add("Explicacion", "Explicacion"); dgv.Columns["Explicacion"]!.Visible = false;
+            dgv.Columns.Add("Beneficiario", "Beneficiario"); dgv.Columns["Beneficiario"]!.Visible = false;
+            dgv.Columns.Add("Vulnerabilidad", "Vulnerabilidad"); dgv.Columns["Vulnerabilidad"]!.Visible = false;
+            dgv.Columns.Add("Producto", "Producto"); dgv.Columns["Producto"]!.Visible = false;
+            dgv.Columns.Add("EsGrupo", "EsGrupo"); dgv.Columns["EsGrupo"]!.Visible = false;
 
             dgv.CellBeginEdit += Dgv_CellBeginEdit;
             dgv.CellEndEdit += Dgv_CellEndEdit;
@@ -187,7 +187,7 @@ namespace ProyectoCatedra
             bool encontrado = false;
             for (int i = 0; i < cbFiltroCategoria.Items.Count; i++)
             {
-                if (((ProyectoCatedra.Modelos.Categoria)cbFiltroCategoria.Items[i]).Id == idCatSel)
+                if (((ProyectoCatedra.Modelos.Categoria)cbFiltroCategoria.Items[i]!).Id == idCatSel)
                 {
                     cbFiltroCategoria.SelectedIndex = i;
                     encontrado = true;
@@ -448,7 +448,7 @@ namespace ProyectoCatedra
 
         private void BtnDeshacer_Click(object? sender, EventArgs e)
         {
-            var accionObj = undoStack.Pop();
+            object? accionObj = undoStack.Pop();
             if (accionObj != null)
             {
                 var accion = (AccionEdicionCelda)accionObj;

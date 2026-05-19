@@ -2,13 +2,6 @@ namespace ProyectoCatedra.Estructuras
 {
     public class Pila
     {
-        private class NodoPila
-        {
-            public object Valor { get; set; }
-            public NodoPila? Siguiente { get; set; }
-            public NodoPila(object valor) { Valor = valor; Siguiente = null; }
-        }
-
         private NodoPila? tope;
         private int contador;
 

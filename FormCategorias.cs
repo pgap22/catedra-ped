@@ -147,7 +147,7 @@ namespace ProyectoCatedra
             dgv.SelectionChanged += (s, e) => {
                 if (dgv.SelectedRows.Count > 0) {
                     seleccionado = new Categoria { 
-                        Id = (int)dgv.SelectedRows[0].Cells[0].Value, 
+                        Id = Convert.ToInt32(dgv.SelectedRows[0].Cells[0].Value ?? 0), 
                         Nombre = dgv.SelectedRows[0].Cells[1].Value?.ToString() ?? "" 
                     };
                     txtNombre.Text = seleccionado.Nombre; btnEditar.Enabled = btnEliminar.Enabled = true;

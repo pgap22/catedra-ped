@@ -81,17 +81,11 @@ namespace ProyectoCatedra.Estructuras
         private void Redimensionar()
         {
             capacidad *= 2;
-            var nuevoArr = new ElementoHeap[capacidad];
+            var nuevoArr = new ElementoHeap?[capacidad];
             for (int i = 0; i < contador; i++) nuevoArr[i] = elementos[i];
             elementos = nuevoArr;
         }
 
         public int Conteo() => contador;
-
-        private class ElementoHeap
-        {
-            public decimal Prioridad { get; set; }
-            public object Valor { get; set; } = string.Empty;
-        }
     }
 }

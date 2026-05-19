@@ -7,9 +7,9 @@ namespace ProyectoCatedra
 {
     public partial class Form1 : Form
     {
-        private MenuStrip menuPrincipal;
-        private Label lblTituloCentro;
-        private Label lblSubtitulo;
+        private MenuStrip menuPrincipal = null!;
+        private Label lblTituloCentro = null!;
+        private Label lblSubtitulo = null!;
 
         public Form1()
         {

@@ -157,7 +157,7 @@ namespace ProyectoCatedra
                 try
                 {
                     int idCat = ((Categoria)cbCategorias.SelectedItem).Id;
-                    int idUni = (int)dgvUnidades.SelectedRows[0].Cells[0].Value;
+                    int idUni = Convert.ToInt32(dgvUnidades.SelectedRows[0].Cells[0].Value ?? 0);
                     servicio.AsociarACategoria(idCat, idUni);
                     CargarPivote();
                 }
@@ -197,7 +197,7 @@ namespace ProyectoCatedra
             dgvUnidades.SelectionChanged += (s, e) => {
                 if (dgvUnidades.SelectedRows.Count > 0) {
                     unidadSeleccionada = new UnidadMedida {
-                        Id = (int)dgvUnidades.SelectedRows[0].Cells[0].Value,
+                        Id = Convert.ToInt32(dgvUnidades.SelectedRows[0].Cells[0].Value ?? 0),
                         Nombre = dgvUnidades.SelectedRows[0].Cells[1].Value?.ToString() ?? "",
                         Tipo = dgvUnidades.SelectedRows[0].Cells[2].Value?.ToString() ?? ""
                     };

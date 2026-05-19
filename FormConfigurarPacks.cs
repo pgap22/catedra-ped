@@ -61,13 +61,13 @@ namespace ProyectoCatedra
             dgv.SelectionMode = DataGridViewSelectionMode.CellSelect;
             dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dgv.Columns.Add("ProductoId", "ProductoId");
-            dgv.Columns["ProductoId"].Visible = false;
+            dgv.Columns["ProductoId"]!.Visible = false;
             dgv.Columns.Add("SKU", "SKU");
-            dgv.Columns["SKU"].ReadOnly = true;
+            dgv.Columns["SKU"]!.ReadOnly = true;
             dgv.Columns.Add("Producto", "Producto");
-            dgv.Columns["Producto"].ReadOnly = true;
+            dgv.Columns["Producto"]!.ReadOnly = true;
             dgv.Columns.Add("Stock", "Stock");
-            dgv.Columns["Stock"].ReadOnly = true;
+            dgv.Columns["Stock"]!.ReadOnly = true;
             dgv.Columns.Add("Porcentaje", "Porcentaje (%)");
             dgv.CellEndEdit += (s, e) => ActualizarTotal();
 

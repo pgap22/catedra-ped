@@ -82,11 +82,11 @@ namespace ProyectoCatedra
             dgv.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
 
             dgv.Columns.Add("IdCategoria", "Id Cat");
-            dgv.Columns["IdCategoria"].Visible = false;
+            dgv.Columns["IdCategoria"]!.Visible = false;
             dgv.Columns.Add("NombreCategoria", "Categoría");
             dgv.Columns.Add("TasaDiaria", "Tasa Diaria");
             dgv.Columns.Add("IdUnidadBase", "Id Uni");
-            dgv.Columns["IdUnidadBase"].Visible = false;
+            dgv.Columns["IdUnidadBase"]!.Visible = false;
             dgv.Columns.Add("NombreUnidadBase", "Unidad Base");
 
             dgv.SelectionChanged += Dgv_SelectionChanged;
@@ -134,7 +134,7 @@ namespace ProyectoCatedra
                 {
                     for (int i = 0; i < cbCategoria.Items.Count; i++)
                     {
-                        if (((Categoria)cbCategoria.Items[i]).Id == idCatSel.Value)
+                        if (((Categoria)cbCategoria.Items[i]!).Id == idCatSel.Value)
                         {
                             cbCategoria.SelectedIndex = i;
                             break;
@@ -156,7 +156,8 @@ namespace ProyectoCatedra
                 var unidades = unidadServicio.ListarPorCategoria(cat.Id);
                 for (int i = 0; i < unidades.Conteo(); i++)
                 {
-                    cbUnidadBase.Items.Add(unidades.Obtener(i));
+                    var unidad = unidades.Obtener(i);
+                    if (unidad != null) cbUnidadBase.Items.Add(unidad);
                 }
                 if (cbUnidadBase.Items.Count > 0)
                 {
@@ -173,7 +174,7 @@ namespace ProyectoCatedra
                 var lista = tasaServicio.ListarTodas();
                 for (int i = 0; i < lista.Conteo(); i++)
                 {
-                    var t = (TasaConsumo)lista.Obtener(i);
+                    var t = (TasaConsumo)lista.Obtener(i)!;
                     dgv.Rows.Add(t.IdCategoria, t.NombreCategoria, t.TasaDiaria, t.IdUnidadBase, t.NombreUnidadBase);
                 }
             }
@@ -200,7 +201,7 @@ namespace ProyectoCatedra
             // Select Categoria
             for (int i = 0; i < cbCategoria.Items.Count; i++)
             {
-                if (((Categoria)cbCategoria.Items[i]).Id == seleccionado.IdCategoria)
+                if (((Categoria)cbCategoria.Items[i]!).Id == seleccionado.IdCategoria)
                 {
                     cbCategoria.SelectedIndex = i;
                     break;
@@ -212,7 +213,7 @@ namespace ProyectoCatedra
             // Select Unidad
             for (int i = 0; i < cbUnidadBase.Items.Count; i++)
             {
-                if (((UnidadMedida)cbUnidadBase.Items[i]).Id == seleccionado.IdUnidadBase)
+                if (((UnidadMedida)cbUnidadBase.Items[i]!).Id == seleccionado.IdUnidadBase)
                 {
                     cbUnidadBase.SelectedIndex = i;
                     break;

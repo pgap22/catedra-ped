@@ -194,14 +194,14 @@ namespace ProyectoCatedra
             dgv.Location = new Point(20, 170); dgv.Size = new Size(740, 280); dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect; dgv.ReadOnly = true; dgv.AllowUserToAddRows = false; dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dgv.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dgv.Columns.Add("Id", "ID"); dgv.Columns.Add("Nombre", "Nombre"); dgv.Columns.Add("M", "Miembros"); dgv.Columns.Add("Vulnerabilidad", "Vulnerabilidad"); dgv.Columns.Add("NivelValor", "NivelValor");
-            dgv.Columns["NivelValor"].Visible = false;
+            dgv.Columns["NivelValor"]!.Visible = false;
             dgv.SelectionChanged += (s, e) => {
                 if (dgv.SelectedRows.Count > 0) {
                     DataGridViewRow row = dgv.SelectedRows[0];
                     seleccionado = new Beneficiario { 
-                        Id = (int)row.Cells["Id"].Value, 
+                        Id = Convert.ToInt32(row.Cells["Id"].Value ?? 0), 
                         Nombre = row.Cells["Nombre"].Value?.ToString() ?? "", 
-                        MiembrosHogar = (int)row.Cells["M"].Value,
+                        MiembrosHogar = Convert.ToInt32(row.Cells["M"].Value ?? 1),
                         NivelVulnerabilidad = Convert.ToInt32(row.Cells["NivelValor"].Value),
                         Activo = true 
                     };
