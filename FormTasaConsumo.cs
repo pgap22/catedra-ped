@@ -119,25 +119,32 @@ namespace ProyectoCatedra
 
         private void CargarCategorias()
         {
-            int? idCatSel = (cbCategoria.SelectedItem as Categoria)?.Id;
-            cbCategoria.Items.Clear();
-            var lista = categoriaServicio.ListarTodas();
-            for (int i = 0; i < lista.Conteo(); i++)
+            try
             {
-                var cat = lista.Obtener(i);
-                if (cat != null) cbCategoria.Items.Add(cat);
-            }
-
-            if (idCatSel.HasValue)
-            {
-                for (int i = 0; i < cbCategoria.Items.Count; i++)
+                int? idCatSel = (cbCategoria.SelectedItem as Categoria)?.Id;
+                cbCategoria.Items.Clear();
+                var lista = categoriaServicio.ListarTodas();
+                for (int i = 0; i < lista.Conteo(); i++)
                 {
-                    if (((Categoria)cbCategoria.Items[i]).Id == idCatSel.Value)
+                    var cat = lista.Obtener(i);
+                    if (cat != null) cbCategoria.Items.Add(cat);
+                }
+
+                if (idCatSel.HasValue)
+                {
+                    for (int i = 0; i < cbCategoria.Items.Count; i++)
                     {
-                        cbCategoria.SelectedIndex = i;
-                        break;
+                        if (((Categoria)cbCategoria.Items[i]).Id == idCatSel.Value)
+                        {
+                            cbCategoria.SelectedIndex = i;
+                            break;
+                        }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("No se pudieron cargar las categorías: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -160,12 +167,19 @@ namespace ProyectoCatedra
 
         private void CargarTasa()
         {
-            dgv.Rows.Clear();
-            var lista = tasaServicio.ListarTodas();
-            for (int i = 0; i < lista.Conteo(); i++)
+            try
             {
-                var t = (TasaConsumo)lista.Obtener(i);
-                dgv.Rows.Add(t.IdCategoria, t.NombreCategoria, t.TasaDiaria, t.IdUnidadBase, t.NombreUnidadBase);
+                dgv.Rows.Clear();
+                var lista = tasaServicio.ListarTodas();
+                for (int i = 0; i < lista.Conteo(); i++)
+                {
+                    var t = (TasaConsumo)lista.Obtener(i);
+                    dgv.Rows.Add(t.IdCategoria, t.NombreCategoria, t.TasaDiaria, t.IdUnidadBase, t.NombreUnidadBase);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("No se pudieron cargar las tasas: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -233,21 +247,35 @@ namespace ProyectoCatedra
                 IdUnidadBase = uni.Id
             };
 
-            tasaServicio.Guardar(nuevaTasa);
-            MessageBox.Show("Tasa guardada.");
-            Limpiar();
-            CargarTasa();
+            try
+            {
+                tasaServicio.Guardar(nuevaTasa);
+                MessageBox.Show("Tasa guardada.", "Tasas", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Limpiar();
+                CargarTasa();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("No se pudo guardar la tasa: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void BtnEliminar_Click(object? sender, EventArgs e)
         {
             if (seleccionado != null)
             {
-                if (MessageBox.Show("¿Eliminar tasa?", "Confirmar", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                if (MessageBox.Show("¿Eliminar tasa?", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
                 {
-                    tasaServicio.Eliminar(seleccionado.IdCategoria);
-                    Limpiar();
-                    CargarTasa();
+                    try
+                    {
+                        tasaServicio.Eliminar(seleccionado.IdCategoria);
+                        Limpiar();
+                        CargarTasa();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("No se pudo eliminar la tasa: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
             }
         }

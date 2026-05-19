@@ -57,14 +57,20 @@ namespace ProyectoCatedra
             numStock.Maximum = decimal.MaxValue;
             numStock.DecimalPlaces = 2;
 
-            Label l5 = new Label { Text = "Máx. entrega (0 = sin regla):", Location = new Point(490, 45), AutoSize = true };
+            Label l5 = new Label { Text = "Máx. por entrega:", Location = new Point(490, 45), AutoSize = true };
             numMaxEntrega.Location = new Point(490, 65); numMaxEntrega.Size = new Size(90, 20);
             numMaxEntrega.Maximum = decimal.MaxValue;
             numMaxEntrega.DecimalPlaces = 2;
 
-            Label l6 = new Label { Text = "Días repos. (0 = sin regla):", Location = new Point(590, 45), AutoSize = true };
+            Label l6 = new Label { Text = "Días de espera:", Location = new Point(590, 45), AutoSize = true };
             numDiasReposicion.Location = new Point(590, 65); numDiasReposicion.Size = new Size(90, 20);
             numDiasReposicion.Maximum = 3650;
+
+            ToolTip ayudaReglas = new ToolTip();
+            ayudaReglas.SetToolTip(numMaxEntrega, "Cantidad máxima que una familia puede recibir de este producto en una entrega. Use 0 para no limitar.");
+            ayudaReglas.SetToolTip(l5, "Cantidad máxima que una familia puede recibir de este producto en una entrega. Use 0 para no limitar.");
+            ayudaReglas.SetToolTip(numDiasReposicion, "Días que deben pasar antes de sugerir otra entrega del mismo producto a la misma familia. Use 0 si no aplica.");
+            ayudaReglas.SetToolTip(l6, "Días que deben pasar antes de sugerir otra entrega del mismo producto a la misma familia. Use 0 si no aplica.");
 
             btnGuardar.Text = "Guardar"; btnGuardar.Location = new Point(690, 63); btnGuardar.Size = new Size(80, 25);
             btnGuardar.Click += (s, e) =>
@@ -156,7 +162,8 @@ namespace ProyectoCatedra
             btnEliminar.Click += (s, e) =>
             {
                 if (productoSeleccionado == null) return;
-                
+                if (MessageBox.Show("¿Eliminar este producto del inventario?", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+                 
                 try
                 {
                     Producto anterior = CopiarProducto(productoSeleccionado);
@@ -166,7 +173,7 @@ namespace ProyectoCatedra
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Ocurrió un error al eliminar: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("No se pudo eliminar el producto. Puede estar usado en packs o historial de distribuciones.\n\nDetalle: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             };
 
@@ -181,8 +188,8 @@ namespace ProyectoCatedra
             dgv.Columns.Add("Nombre", "Nombre");
             dgv.Columns.Add("Categoria", "Categoría");
             dgv.Columns.Add("Stock", "Stock");
-            dgv.Columns.Add("MaxEntrega", "Máx. entrega");
-            dgv.Columns.Add("DiasReposicion", "Días reposición");
+            dgv.Columns.Add("MaxEntrega", "Máx. por entrega");
+            dgv.Columns.Add("DiasReposicion", "Días de espera");
             dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dgv.CellClick += (s, e) => {
                 if (e.RowIndex >= 0) {
@@ -258,6 +265,8 @@ namespace ProyectoCatedra
                     try
                     {
                         ListaEnlazada productosCsv = ManejadorCSV.ParsearProductos(ofd.FileName);
+                        int totalCsv = ManejadorCSV.ContarFilasDatos(ofd.FileName);
+                        int invalidos = totalCsv - productosCsv.Conteo();
                         TablaHash hashActuales = servicio.CargarEnHash();
                         ListaEnlazada insertados = new ListaEnlazada();
                         int omitidos = 0;
@@ -297,7 +306,7 @@ namespace ProyectoCatedra
                             undoStack.Empujar(new AccionUndo(TipoAccion.Importacion, "Productos", insertados));
                         }
 
-                        MessageBox.Show($"Importación finalizada.\nInsertados: {insertados.Conteo()}\nOmitidos/Duplicados o inválidos: {omitidos}", "Importar", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show($"Importación finalizada.\nInsertados: {insertados.Conteo()}\nDuplicados o sin categoría: {omitidos}\nInválidos o vacíos: {invalidos}", "Importar", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         Limpiar(); Cargar();
                     }
                     catch (Exception ex)
@@ -310,7 +319,15 @@ namespace ProyectoCatedra
             btnPlantilla.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnPlantilla.Click += (s, e) => ManejadorCSV.GuardarPlantillaConDialogo("plantilla_productos.csv", "SKU,Nombre,NombreCategoria,Stock\nSKU001,Arroz,Granos Basicos,50\nSKU002,Leche,Lacteos,100");
 
-            this.Controls.AddRange(new Control[] { btnNuevo, l1, txtSKU, l2, txtNombre, l3, cbCat, l4, numStock, l5, numMaxEntrega, l6, numDiasReposicion, btnGuardar, btnEliminar, txtBuscar, btnBuscar, btnUndo, dgv, btnImp, btnPlantilla });
+            Label lblStockBajo = new Label
+            {
+                Text = "0 en reglas = sin límite/sin espera. Filas rojas = stock bajo.",
+                Location = new Point(450, 435),
+                AutoSize = true,
+                ForeColor = Color.DarkRed
+            };
+
+            this.Controls.AddRange(new Control[] { btnNuevo, l1, txtSKU, l2, txtNombre, l3, cbCat, l4, numStock, l5, numMaxEntrega, l6, numDiasReposicion, btnGuardar, btnEliminar, txtBuscar, btnBuscar, btnUndo, dgv, btnImp, btnPlantilla, lblStockBajo });
             AplicarEscaladoDpi();
         }
 

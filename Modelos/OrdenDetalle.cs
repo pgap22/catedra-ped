@@ -6,6 +6,8 @@ namespace ProyectoCatedra.Modelos
         public int OrdenId { get; set; }
         public int BeneficiarioId { get; set; }
         public string NombreBeneficiario { get; set; } = "";
+        public int NivelVulnerabilidad { get; set; } = Beneficiario.VulnerabilidadMedia;
+        public string VulnerabilidadTexto { get; set; } = Beneficiario.ObtenerEtiquetaVulnerabilidad(Beneficiario.VulnerabilidadMedia);
         public int CategoriaId { get; set; }
         public string NombreCategoria { get; set; } = "";
         public int ProductoId { get; set; }

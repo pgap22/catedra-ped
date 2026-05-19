@@ -15,6 +15,7 @@ namespace ProyectoCatedra
         private TextBox txtNombre = new TextBox();
         private TextBox txtBuscar = new TextBox();
         private NumericUpDown numMiembros = new NumericUpDown();
+        private ComboBox cmbVulnerabilidad = new ComboBox();
         private DataGridView dgv = new DataGridView();
         private Button btnNuevo = new Button();
         private Button btnGuardar = new Button();
@@ -35,8 +36,8 @@ namespace ProyectoCatedra
         {
             this.AutoScaleMode = AutoScaleMode.None;
             this.Text = "Padrón de Beneficiarios";
-            this.Size = new Size(650, 550);
-            this.MinimumSize = new Size(630, 500);
+            this.Size = new Size(800, 550);
+            this.MinimumSize = new Size(780, 500);
             this.StartPosition = FormStartPosition.CenterParent;
 
             btnNuevo.Text = "Nuevo"; btnNuevo.Location = new Point(20, 15); btnNuevo.Size = new Size(60, 25);
@@ -48,79 +49,133 @@ namespace ProyectoCatedra
             Label l2 = new Label { Text = "Miembros:", Location = new Point(210, 45), AutoSize = true };
             numMiembros.Location = new Point(210, 65); numMiembros.Size = new Size(60, 20); numMiembros.Minimum = 1; numMiembros.Maximum = 999;
 
-            btnGuardar.Text = "Registrar"; btnGuardar.Location = new Point(280, 63); btnGuardar.Size = new Size(80, 25);
+            Label l3 = new Label { Text = "Nivel de vulnerabilidad:", Location = new Point(280, 45), AutoSize = true };
+            cmbVulnerabilidad.Location = new Point(280, 65); cmbVulnerabilidad.Size = new Size(190, 23); cmbVulnerabilidad.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbVulnerabilidad.Items.Add(Beneficiario.ObtenerEtiquetaVulnerabilidad(Beneficiario.VulnerabilidadAlta));
+            cmbVulnerabilidad.Items.Add(Beneficiario.ObtenerEtiquetaVulnerabilidad(Beneficiario.VulnerabilidadMedia));
+            cmbVulnerabilidad.Items.Add(Beneficiario.ObtenerEtiquetaVulnerabilidad(Beneficiario.VulnerabilidadBaja));
+            SeleccionarNivelVulnerabilidad(Beneficiario.VulnerabilidadMedia);
+
+            ToolTip ayudaVulnerabilidad = new ToolTip();
+            ayudaVulnerabilidad.SetToolTip(cmbVulnerabilidad, "Este nivel ayuda a priorizar familias cuando el stock no alcanza para todos.");
+
+            btnGuardar.Text = "Registrar"; btnGuardar.Location = new Point(480, 63); btnGuardar.Size = new Size(80, 25);
             btnGuardar.Click += (s, e) => { 
                 string nombreNuevo = txtNombre.Text.Trim();
-                if (string.IsNullOrWhiteSpace(nombreNuevo)) return;
+                if (string.IsNullOrWhiteSpace(nombreNuevo))
+                {
+                    MessageBox.Show("Ingrese el nombre del beneficiario.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
                 if (ExisteNombreBeneficiario(nombreNuevo, -1)) {
                     MessageBox.Show("Ya existe un beneficiario con ese nombre.", "Nombre duplicado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                var b = new Beneficiario { Nombre = nombreNuevo, MiembrosHogar = (int)numMiembros.Value, Activo = true };
-                servicio.Guardar(b); 
-                undoStack.Empujar(new AccionUndo(TipoAccion.Insertar, "Beneficiarios", b));
-                Limpiar(); Cargar(); 
+                try
+                {
+                    var b = new Beneficiario { Nombre = nombreNuevo, MiembrosHogar = (int)numMiembros.Value, NivelVulnerabilidad = ObtenerNivelVulnerabilidadSeleccionado(), Activo = true };
+                    servicio.Guardar(b);
+                    undoStack.Empujar(new AccionUndo(TipoAccion.Insertar, "Beneficiarios", b));
+                    Limpiar(); Cargar();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("No se pudo registrar el beneficiario: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             };
 
-            btnEditar.Text = "Modificar"; btnEditar.Location = new Point(370, 63); btnEditar.Size = new Size(80, 25); btnEditar.Enabled = false;
+            btnEditar.Text = "Modificar"; btnEditar.Location = new Point(570, 63); btnEditar.Size = new Size(80, 25); btnEditar.Enabled = false;
             btnEditar.Click += (s, e) => { 
                 if (seleccionado == null) return;
 
                 string nombreNuevo = txtNombre.Text.Trim();
-                if (string.IsNullOrWhiteSpace(nombreNuevo)) return;
+                if (string.IsNullOrWhiteSpace(nombreNuevo))
+                {
+                    MessageBox.Show("Ingrese el nombre del beneficiario.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
                 if (ExisteNombreBeneficiario(nombreNuevo, seleccionado.Id)) {
                     MessageBox.Show("Ya existe otro beneficiario con ese nombre.", "Nombre duplicado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                var ant = new Beneficiario { Id = seleccionado.Id, Nombre = seleccionado.Nombre, MiembrosHogar = seleccionado.MiembrosHogar, Activo = true };
-                seleccionado.Nombre = nombreNuevo; seleccionado.MiembrosHogar = (int)numMiembros.Value; 
-                servicio.Actualizar(seleccionado); 
-                undoStack.Empujar(new AccionUndo(TipoAccion.Editar, "Beneficiarios", ant));
-                Limpiar(); Cargar(); 
+                try
+                {
+                    var ant = new Beneficiario { Id = seleccionado.Id, Nombre = seleccionado.Nombre, MiembrosHogar = seleccionado.MiembrosHogar, NivelVulnerabilidad = seleccionado.NivelVulnerabilidad, Activo = true };
+                    seleccionado.Nombre = nombreNuevo; seleccionado.MiembrosHogar = (int)numMiembros.Value; seleccionado.NivelVulnerabilidad = ObtenerNivelVulnerabilidadSeleccionado();
+                    servicio.Actualizar(seleccionado);
+                    undoStack.Empujar(new AccionUndo(TipoAccion.Editar, "Beneficiarios", ant));
+                    Limpiar(); Cargar();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("No se pudo modificar el beneficiario: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             };
 
-            btnEliminar.Text = "Eliminar"; btnEliminar.Location = new Point(460, 63); btnEliminar.Size = new Size(80, 25); btnEliminar.Enabled = false;
+            btnEliminar.Text = "Eliminar"; btnEliminar.Location = new Point(660, 63); btnEliminar.Size = new Size(80, 25); btnEliminar.Enabled = false;
             btnEliminar.Click += (s, e) => { 
                 if (seleccionado == null) return;
-                undoStack.Empujar(new AccionUndo(TipoAccion.Eliminar, "Beneficiarios", seleccionado));
-                servicio.Eliminar(seleccionado.Id); 
-                Limpiar(); Cargar(); 
+                if (MessageBox.Show("¿Eliminar este beneficiario?", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+
+                try
+                {
+                    undoStack.Empujar(new AccionUndo(TipoAccion.Eliminar, "Beneficiarios", seleccionado));
+                    servicio.Eliminar(seleccionado.Id);
+                    Limpiar(); Cargar();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("No se pudo eliminar el beneficiario: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             };
 
             btnUndo.Text = "Deshacer último cambio manual"; btnUndo.Location = new Point(20, 460); btnUndo.Size = new Size(180, 30);
             btnUndo.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnUndo.Click += (s, e) => {
                 var acc = (AccionUndo?)undoStack.Pop();
-                if (acc == null) return;
-                
-                if (acc.Tipo == TipoAccion.Importacion) {
-                    var lImp = (ListaEnlazada)acc.Datos;
-                    for(int i=0; i<lImp.Conteo(); i++) {
-                        var bImp = (Beneficiario?)lImp.Obtener(i);
-                        if (bImp == null) continue;
-                        var lista = servicio.ListarTodos();
-                        for(int j=0; j<lista.Conteo(); j++) {
-                            var temp = (Beneficiario?)lista.Obtener(j);
-                            if(temp != null && temp.Nombre == bImp.Nombre) { servicio.Eliminar(temp.Id); break; }
-                        }
-                    }
-                } else {
-                    var b = (Beneficiario)acc.Datos;
-                    if (acc.Tipo == TipoAccion.Insertar) {
-                        var lista = servicio.ListarTodos();
-                        for(int i=0; i<lista.Conteo(); i++) {
-                            var temp = (Beneficiario?)lista.Obtener(i);
-                            if(temp != null && temp.Nombre == b.Nombre) { servicio.Eliminar(temp.Id); break; }
-                        }
-                    } else if (acc.Tipo == TipoAccion.Editar) servicio.Actualizar(b);
-                    else if (acc.Tipo == TipoAccion.Eliminar) servicio.Guardar(b);
+                if (acc == null)
+                {
+                    MessageBox.Show("No hay cambios para deshacer.", "Deshacer", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
                 }
-                Cargar();
+
+                try
+                {
+                    if (acc.Tipo == TipoAccion.Importacion) {
+                        var lImp = (ListaEnlazada)acc.Datos;
+                        for(int i=0; i<lImp.Conteo(); i++) {
+                            var bImp = (Beneficiario?)lImp.Obtener(i);
+                            if (bImp == null) continue;
+                            var lista = servicio.ListarTodos();
+                            for(int j=0; j<lista.Conteo(); j++) {
+                                var temp = (Beneficiario?)lista.Obtener(j);
+                                if(temp != null && temp.Nombre == bImp.Nombre) { servicio.Eliminar(temp.Id); break; }
+                            }
+                        }
+                    } else {
+                        var b = (Beneficiario)acc.Datos;
+                        if (acc.Tipo == TipoAccion.Insertar) {
+                            var lista = servicio.ListarTodos();
+                            for(int i=0; i<lista.Conteo(); i++) {
+                                var temp = (Beneficiario?)lista.Obtener(i);
+                                if(temp != null && temp.Nombre == b.Nombre) { servicio.Eliminar(temp.Id); break; }
+                            }
+                        } else if (acc.Tipo == TipoAccion.Editar) servicio.Actualizar(b);
+                        else if (acc.Tipo == TipoAccion.Eliminar) servicio.Guardar(b);
+                    }
+
+                    Limpiar();
+                    Cargar();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("No se pudo deshacer el cambio: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             };
 
-            GroupBox gb = new GroupBox { Text = "Buscar Beneficiario (por Nombre)", Location = new Point(20, 100), Size = new Size(590, 60) };
+            GroupBox gb = new GroupBox { Text = "Buscar Beneficiario (por Nombre)", Location = new Point(20, 100), Size = new Size(740, 60) };
             txtBuscar.Location = new Point(15, 25); txtBuscar.Size = new Size(350, 20);
             btnBuscar.Text = "Buscar"; btnBuscar.Location = new Point(380, 23); btnBuscar.Size = new Size(140, 25);
             btnBuscar.Click += (s, e) => {
@@ -129,25 +184,28 @@ namespace ProyectoCatedra
                 if (resultados.Conteo() > 0) { 
                     for (int i = 0; i < resultados.Conteo(); i++) { 
                         var b = (Beneficiario?)resultados.Obtener(i); 
-                        if (b != null) dgv.Rows.Add(b.Id, b.Nombre, b.MiembrosHogar); 
+                        if (b != null) AgregarFilaBeneficiario(b); 
                     } 
                 }
                 else MessageBox.Show("No se encontraron coincidencias.");
             };
             gb.Controls.AddRange(new Control[] { txtBuscar, btnBuscar });
 
-            dgv.Location = new Point(20, 170); dgv.Size = new Size(590, 280); dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect; dgv.ReadOnly = true; dgv.AllowUserToAddRows = false; dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgv.Location = new Point(20, 170); dgv.Size = new Size(740, 280); dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect; dgv.ReadOnly = true; dgv.AllowUserToAddRows = false; dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dgv.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            dgv.Columns.Add("Id", "ID"); dgv.Columns.Add("Nombre", "Nombre"); dgv.Columns.Add("M", "Miembros");
+            dgv.Columns.Add("Id", "ID"); dgv.Columns.Add("Nombre", "Nombre"); dgv.Columns.Add("M", "Miembros"); dgv.Columns.Add("Vulnerabilidad", "Vulnerabilidad"); dgv.Columns.Add("NivelValor", "NivelValor");
+            dgv.Columns["NivelValor"].Visible = false;
             dgv.SelectionChanged += (s, e) => {
                 if (dgv.SelectedRows.Count > 0) {
+                    DataGridViewRow row = dgv.SelectedRows[0];
                     seleccionado = new Beneficiario { 
-                        Id = (int)dgv.SelectedRows[0].Cells[0].Value, 
-                        Nombre = dgv.SelectedRows[0].Cells[1].Value?.ToString() ?? "", 
-                        MiembrosHogar = (int)dgv.SelectedRows[0].Cells[2].Value, 
+                        Id = (int)row.Cells["Id"].Value, 
+                        Nombre = row.Cells["Nombre"].Value?.ToString() ?? "", 
+                        MiembrosHogar = (int)row.Cells["M"].Value,
+                        NivelVulnerabilidad = Convert.ToInt32(row.Cells["NivelValor"].Value),
                         Activo = true 
                     };
-                    txtNombre.Text = seleccionado.Nombre; numMiembros.Value = seleccionado.MiembrosHogar; btnEditar.Enabled = btnEliminar.Enabled = true;
+                    txtNombre.Text = seleccionado.Nombre; numMiembros.Value = seleccionado.MiembrosHogar; SeleccionarNivelVulnerabilidad(seleccionado.NivelVulnerabilidad); btnEditar.Enabled = btnEliminar.Enabled = true;
                 }
             };
 
@@ -156,30 +214,46 @@ namespace ProyectoCatedra
             btnImp.Click += (s, e) => {
                 OpenFileDialog ofd = new OpenFileDialog();
                 if (ofd.ShowDialog() == DialogResult.OK) {
-                    var l = ManejadorCSV.ParsearBeneficiarios(ofd.FileName);
-                    int omitidos = 0;
-                    for (int i = 0; i < l.Conteo(); i++) {
-                        var b = (Beneficiario?)l.Obtener(i);
-                        if (b == null) continue;
+                    try
+                    {
+                        var l = ManejadorCSV.ParsearBeneficiarios(ofd.FileName);
+                        int totalCsv = ManejadorCSV.ContarFilasDatos(ofd.FileName);
+                        int invalidas = totalCsv - l.Conteo();
+                        int omitidos = 0;
+                        ListaEnlazada insertados = new ListaEnlazada();
+                        for (int i = 0; i < l.Conteo(); i++) {
+                            var b = (Beneficiario?)l.Obtener(i);
+                            if (b == null) continue;
 
-                        string nombreImportado = b.Nombre.Trim();
-                        if (string.IsNullOrWhiteSpace(nombreImportado)) { omitidos++; continue; }
-                        if (ExisteNombreBeneficiario(nombreImportado, -1)) { omitidos++; continue; }
+                            string nombreImportado = b.Nombre.Trim();
+                            if (string.IsNullOrWhiteSpace(nombreImportado)) { omitidos++; continue; }
+                            if (ExisteNombreBeneficiario(nombreImportado, -1)) { omitidos++; continue; }
 
-                        b.Nombre = nombreImportado;
-                        servicio.Guardar(b);
+                            b.Nombre = nombreImportado;
+                            servicio.Guardar(b);
+                            insertados.Agregar(b);
+                        }
+
+                        if (insertados.Conteo() > 0)
+                        {
+                            undoStack.Empujar(new AccionUndo(TipoAccion.Importacion, "Beneficiarios", insertados));
+                        }
+
+                        Cargar();
+                        MessageBox.Show($"Importación finalizada.\nInsertados: {insertados.Conteo()}\nDuplicados: {omitidos}\nInválidos o vacíos: {invalidas}", "Importar", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
-                    undoStack.Empujar(new AccionUndo(TipoAccion.Importacion, "Beneficiarios", l));
-                    Cargar();
-                    if (omitidos > 0) MessageBox.Show("Se omitieron " + omitidos + " registros por nombre duplicado o vacio.", "Importacion con validacion", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("No se pudo importar el CSV: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
             };
 
             Button btnPlantilla = new Button { Text = "Bajar Plantilla", Location = new Point(320, 460), Size = new Size(110, 30) };
             btnPlantilla.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            btnPlantilla.Click += (s, e) => ManejadorCSV.GuardarPlantillaConDialogo("plantilla_beneficiarios.csv", "Nombre,Miembros\nJuan Perez,5\nMaria Lopez,3");
+            btnPlantilla.Click += (s, e) => ManejadorCSV.GuardarPlantillaConDialogo("plantilla_beneficiarios.csv", "Nombre,Miembros,NivelVulnerabilidad\nJuan Perez,5,Media\nMaria Lopez,3,Alta\nFamilia Solis,2,Baja");
 
-            this.Controls.AddRange(new Control[] { btnNuevo, l1, txtNombre, l2, numMiembros, btnGuardar, btnEditar, btnEliminar, gb, dgv, btnUndo, btnImp, btnPlantilla });
+            this.Controls.AddRange(new Control[] { btnNuevo, l1, txtNombre, l2, numMiembros, l3, cmbVulnerabilidad, btnGuardar, btnEditar, btnEliminar, gb, dgv, btnUndo, btnImp, btnPlantilla });
             AplicarEscaladoDpi();
         }
 
@@ -192,8 +266,25 @@ namespace ProyectoCatedra
             EscaladorDpi.EscalarJerarquia(this, factor);
         }
 
-        private void Limpiar() { txtNombre.Clear(); numMiembros.Value = 1; seleccionado = null; btnEditar.Enabled = btnEliminar.Enabled = false; dgv.ClearSelection(); }
-        private void Cargar() { dgv.Rows.Clear(); var l = servicio.ListarTodos(); for (int i = 0; i < l.Conteo(); i++) { var b = (Beneficiario?)l.Obtener(i); if (b != null) dgv.Rows.Add(b.Id, b.Nombre, b.MiembrosHogar); } }
+        private void Limpiar() { txtNombre.Clear(); numMiembros.Value = 1; SeleccionarNivelVulnerabilidad(Beneficiario.VulnerabilidadMedia); seleccionado = null; btnEditar.Enabled = btnEliminar.Enabled = false; dgv.ClearSelection(); }
+        private void Cargar() { dgv.Rows.Clear(); var l = servicio.ListarTodos(); for (int i = 0; i < l.Conteo(); i++) { var b = (Beneficiario?)l.Obtener(i); if (b != null) AgregarFilaBeneficiario(b); } }
+
+        private void AgregarFilaBeneficiario(Beneficiario b)
+        {
+            dgv.Rows.Add(b.Id, b.Nombre, b.MiembrosHogar, b.VulnerabilidadTexto, Beneficiario.NormalizarNivelVulnerabilidad(b.NivelVulnerabilidad));
+        }
+
+        private int ObtenerNivelVulnerabilidadSeleccionado()
+        {
+            return Beneficiario.ParsearNivelVulnerabilidad(cmbVulnerabilidad.SelectedItem?.ToString());
+        }
+
+        private void SeleccionarNivelVulnerabilidad(int nivel)
+        {
+            string etiqueta = Beneficiario.ObtenerEtiquetaVulnerabilidad(nivel);
+            cmbVulnerabilidad.SelectedItem = etiqueta;
+            if (cmbVulnerabilidad.SelectedIndex < 0) cmbVulnerabilidad.SelectedIndex = 1;
+        }
 
         private bool ExisteNombreBeneficiario(string nombre, int idExcluir)
         {

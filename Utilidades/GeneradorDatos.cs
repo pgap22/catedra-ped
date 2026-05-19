@@ -1,6 +1,7 @@
 using System;
 using System.Data.SQLite;
 using ProyectoCatedra.Datos;
+using ProyectoCatedra.Modelos;
 
 namespace ProyectoCatedra.Utilidades
 {
@@ -200,7 +201,7 @@ namespace ProyectoCatedra.Utilidades
                         InsertarPack(conexion, tr, 3, 22, 20);
 
                         // 7. Beneficiarios (150 registros)
-                        string sqlBen = "INSERT INTO Beneficiarios (Nombre, MiembrosHogar, Activo, FechaRegistro) VALUES (@nom, @miembros, 1, @fecha)";
+                        string sqlBen = "INSERT INTO Beneficiarios (Nombre, MiembrosHogar, Activo, FechaRegistro, NivelVulnerabilidad) VALUES (@nom, @miembros, 1, @fecha, @nivel)";
                         string[] nombres = { "Juan", "Maria", "Carlos", "Ana", "Luis", "Carmen", "Pedro", "Laura", "Jose", "Rosa", "Jorge", "Marta", "Miguel", "Lucia", "Francisco", "Elena", "Roberto", "Sandra", "Diego", "Patricia" };
                         string[] apellidos = { "Garcia", "Martinez", "Rodriguez", "Lopez", "Perez", "Gonzalez", "Gomez", "Fernandez", "Ramirez", "Cruz", "Diaz", "Ortiz", "Mendez", "Reyes", "Alvarez", "Castillo", "Chavez", "Rivera", "Juarez", "Ramos" };
                         
@@ -216,15 +217,16 @@ namespace ProyectoCatedra.Utilidades
                             else if (chance < 75) miembros = r.Next(3, 6); // 60% hogares medianos (3-5)
                             else miembros = r.Next(6, 10); // 25% hogares grandes (6-9)
 
-                            // En datos demo todas empiezan recientes para no crear deficit artificial
-                            // antes de que exista una primera entrega real.
-                            DateTime fechaReg = RelojDemo.Ahora;
+                            // En demo se registran días atrás para que exista déficit al probar distribución.
+                            DateTime fechaReg = RelojDemo.Ahora.AddDays(-r.Next(7, 31));
+                            int nivel = chance < 20 ? Beneficiario.VulnerabilidadAlta : chance < 80 ? Beneficiario.VulnerabilidadMedia : Beneficiario.VulnerabilidadBaja;
 
                             using (var cmd = new SQLiteCommand(sqlBen, conexion, tr))
                             {
                                 cmd.Parameters.AddWithValue("@nom", nom);
                                 cmd.Parameters.AddWithValue("@miembros", miembros);
                                 cmd.Parameters.AddWithValue("@fecha", fechaReg.ToString("yyyy-MM-dd HH:mm:ss"));
+                                cmd.Parameters.AddWithValue("@nivel", nivel);
                                 cmd.ExecuteNonQuery();
                             }
                         }
@@ -285,12 +287,12 @@ namespace ProyectoCatedra.Utilidades
                         InsertarPack(conexion, tr, 3, 4, 70);
                         InsertarPack(conexion, tr, 3, 5, 30);
 
-                        string sqlBen = "INSERT INTO Beneficiarios (Nombre, MiembrosHogar, Activo, FechaRegistro) VALUES (@nom, @miembros, 1, @fecha)";
-                        DateTime fecha = RelojDemo.Ahora;
-                        InsertarBeneficiario(conexion, tr, sqlBen, "Familia Lopez", 5, fecha);
-                        InsertarBeneficiario(conexion, tr, sqlBen, "Familia Perez", 3, fecha);
-                        InsertarBeneficiario(conexion, tr, sqlBen, "Familia Martinez", 7, fecha);
-                        InsertarBeneficiario(conexion, tr, sqlBen, "Familia Solis", 2, fecha);
+                        string sqlBen = "INSERT INTO Beneficiarios (Nombre, MiembrosHogar, Activo, FechaRegistro, NivelVulnerabilidad) VALUES (@nom, @miembros, 1, @fecha, @nivel)";
+                        DateTime fecha = RelojDemo.Ahora.AddDays(-15);
+                        InsertarBeneficiario(conexion, tr, sqlBen, "Familia Lopez", 5, fecha, Beneficiario.VulnerabilidadMedia);
+                        InsertarBeneficiario(conexion, tr, sqlBen, "Familia Perez", 3, fecha, Beneficiario.VulnerabilidadMedia);
+                        InsertarBeneficiario(conexion, tr, sqlBen, "Familia Martinez", 7, fecha, Beneficiario.VulnerabilidadBaja);
+                        InsertarBeneficiario(conexion, tr, sqlBen, "Familia Solis", 2, fecha, Beneficiario.VulnerabilidadAlta);
 
                         tr.Commit();
                     }
@@ -388,13 +390,14 @@ namespace ProyectoCatedra.Utilidades
             }
         }
 
-        private static void InsertarBeneficiario(SQLiteConnection conexion, SQLiteTransaction tr, string sql, string nombre, int miembros, DateTime fecha)
+        private static void InsertarBeneficiario(SQLiteConnection conexion, SQLiteTransaction tr, string sql, string nombre, int miembros, DateTime fecha, int nivelVulnerabilidad)
         {
             using (var cmd = new SQLiteCommand(sql, conexion, tr))
             {
                 cmd.Parameters.AddWithValue("@nom", nombre);
                 cmd.Parameters.AddWithValue("@miembros", miembros);
                 cmd.Parameters.AddWithValue("@fecha", fecha.ToString("yyyy-MM-dd HH:mm:ss"));
+                cmd.Parameters.AddWithValue("@nivel", Beneficiario.NormalizarNivelVulnerabilidad(nivelVulnerabilidad));
                 cmd.ExecuteNonQuery();
             }
         }

@@ -9,6 +9,10 @@ namespace ProyectoCatedra.Servicios
 {
     public class DistribucionServicio
     {
+        private const int DiasPrimeraEntregaAlta = 14;
+        private const int DiasPrimeraEntregaMedia = 7;
+        private const int DiasPrimeraEntregaBaja = 4;
+
         private ConexionDB conexionDB;
         private BeneficiarioServicio beneficiarioServicio;
         private ProductoServicio productoServicio;
@@ -65,11 +69,10 @@ namespace ProyectoCatedra.Servicios
 
                     var resultadoDeficit = CalcularDeficit(b, tasa);
                     double deficit = resultadoDeficit.Deficit;
-                    
-                    // La prioridad incluye el deficit (4 decimales), y desempates:
-                    // 1) Miembros del hogar (mayor = más prioridad)
-                    // 2) Antigüedad (id más bajo = más prioridad)
-                    decimal prioridad = Math.Round((decimal)deficit, 4) 
+                    if (deficit <= 0) continue;
+                     
+                    decimal prioridad = ObtenerPesoVulnerabilidad(b.NivelVulnerabilidad)
+                                      + Math.Round((decimal)deficit, 4) 
                                       + (b.MiembrosHogar * 0.00001m) 
                                       + ((1000000m - b.Id) * 0.0000000001m);
                                       
@@ -93,12 +96,7 @@ namespace ProyectoCatedra.Servicios
                     
                     var info = (InfoDistribucion)max;
                     
-                    // Si el deficit es cero o negativo, igual le podemos dar algo si sobra?
-                    // Según reglas: "Nadie recibe más de lo que razonablemente puede consumir"
-                    // Para simplificar, le damos para 1 semana de consumo si el deficit es 0, o solo suplimos el deficit
-                    double demanda = info.Deficit > 0 ? info.Deficit : (info.Beneficiario.MiembrosHogar * tasa.TasaDiaria * 7);
-                    
-                    if (demanda <= 0) demanda = info.Beneficiario.MiembrosHogar * tasa.TasaDiaria * 7; // Backup
+                    double demanda = info.Deficit;
 
                     double aAsignar = Math.Floor(Math.Min(demanda, stockDisponible));
                     if (aAsignar < 1)
@@ -126,51 +124,167 @@ namespace ProyectoCatedra.Servicios
             return propuesta;
         }
 
-        private (double Deficit, string Explicacion) CalcularDeficit(Beneficiario b, TasaConsumo tasa)
+        public string ObtenerDiagnosticoSinPropuesta(int categoriaIdFiltro = 0)
         {
-            // Consumo esperado = Miembros * Tasa * Días desde registro
-            TimeSpan antiguedad = RelojDemo.Ahora - b.FechaRegistro;
-            double dias = Math.Max(1, antiguedad.TotalDays); // Mínimo 1 día para no multiplicar por 0
-            
-            // Obtener lo que ya recibió históricamente de esta categoría
-            double totalRecibido = 0;
-            using (var conexion = conexionDB.ObtenerConexion())
+            var beneficiarios = beneficiarioServicio.ListarTodos();
+            if (beneficiarios.Conteo() == 0) return "No hay beneficiarios registrados.";
+
+            int activos = ContarBeneficiariosActivos(beneficiarios);
+            if (activos == 0) return "Hay beneficiarios registrados, pero ninguno está activo.";
+
+            var tasas = tasaServicio.ListarTodas();
+            if (tasas.Conteo() == 0) return "No hay tasas de consumo configuradas.";
+
+            bool hayTasaProcesada = false;
+            bool hayPack = false;
+            bool hayStock = false;
+            bool hayDeficit = false;
+            bool hayCantidadEntera = false;
+            string primeraCategoriaSinPack = "";
+
+            for (int i = 0; i < tasas.Conteo(); i++)
             {
-                conexion.Open();
-                string sql = @"
-                    SELECT SUM(CantidadAsignada) 
-                    FROM OrdenDetalle od
-                    INNER JOIN Orden o ON od.OrdenId = o.Id
-                    WHERE od.BeneficiarioId = @bId 
-                      AND od.CategoriaId = @cId
-                      AND o.Estado = 'CONFIRMADA'";
-                      
-                using (var cmd = new SQLiteCommand(sql, conexion))
+                var tasa = (TasaConsumo)tasas.Obtener(i)!;
+                if (categoriaIdFiltro > 0 && tasa.IdCategoria != categoriaIdFiltro) continue;
+
+                hayTasaProcesada = true;
+                var pack = packServicio.ListarPorCategoria(tasa.IdCategoria);
+                if (pack.Conteo() == 0)
                 {
-                    cmd.Parameters.AddWithValue("@bId", b.Id);
-                    cmd.Parameters.AddWithValue("@cId", tasa.IdCategoria);
-                    var res = cmd.ExecuteScalar();
-                    if (res != DBNull.Value && res != null)
+                    if (string.IsNullOrEmpty(primeraCategoriaSinPack)) primeraCategoriaSinPack = tasa.NombreCategoria;
+                    continue;
+                }
+
+                hayPack = true;
+                if (!packServicio.EsPackValido(tasa.IdCategoria))
+                {
+                    double total = packServicio.ObtenerTotalPorcentaje(tasa.IdCategoria);
+                    return $"El pack de la categoría '{tasa.NombreCategoria}' no suma 100%. Total actual: {total}%.";
+                }
+
+                double stockDisponible = ObtenerStockTotalPack(pack);
+                if (stockDisponible <= 0) continue;
+
+                hayStock = true;
+                for (int j = 0; j < beneficiarios.Conteo(); j++)
+                {
+                    var b = (Beneficiario)beneficiarios.Obtener(j)!;
+                    if (!b.Activo) continue;
+
+                    double deficit = CalcularDeficit(b, tasa).Deficit;
+                    if (deficit <= 0) continue;
+
+                    hayDeficit = true;
+                    double cantidadCategoria = Math.Floor(Math.Min(deficit, stockDisponible));
+                    if (cantidadCategoria < 1) continue;
+
+                    hayCantidadEntera = true;
+                    if (PuedeCrearAlMenosUnaLineaProducto(b, pack, cantidadCategoria))
                     {
-                        totalRecibido = Convert.ToDouble(res);
+                        return "Sí hay datos suficientes para generar una propuesta, pero las líneas fueron omitidas por una condición no identificada. Revise reglas de pack, reposición o stock por producto.";
                     }
                 }
             }
 
-            double diasParaDeficit = totalRecibido == 0 ? 0 : dias;
-            double consumoEsperado = b.MiembrosHogar * tasa.TasaDiaria * diasParaDeficit;
-            double deficitFinal = consumoEsperado - totalRecibido;
+            if (!hayTasaProcesada) return "La categoría seleccionada no tiene tasa de consumo configurada.";
+            if (!hayPack) return string.IsNullOrEmpty(primeraCategoriaSinPack)
+                ? "Las categorías con tasa de consumo no tienen packs configurados."
+                : $"La categoría '{primeraCategoriaSinPack}' tiene tasa, pero no tiene pack configurado.";
+            if (!hayStock) return "Los packs configurados existen, pero sus productos no tienen stock disponible.";
+            if (!hayDeficit) return "Los beneficiarios activos no tienen déficit pendiente. Esto pasa si recibieron ayuda recientemente.";
+            if (!hayCantidadEntera) return "Hay déficit pendiente, pero es menor a 1 unidad entera. Avance la fecha de demo o espere a que el déficit acumule al menos 1 unidad.";
+
+            return "Hay déficit y stock, pero el pack no generó productos entregables. Revise porcentajes, máximos por entrega y reglas de reposición.";
+        }
+
+        private int ContarBeneficiariosActivos(ListaEnlazada beneficiarios)
+        {
+            int total = 0;
+            for (int i = 0; i < beneficiarios.Conteo(); i++)
+            {
+                var b = (Beneficiario)beneficiarios.Obtener(i)!;
+                if (b.Activo) total++;
+            }
+            return total;
+        }
+
+        private bool PuedeCrearAlMenosUnaLineaProducto(Beneficiario beneficiario, ListaEnlazada pack, double cantidadCategoria)
+        {
+            for (int i = 0; i < pack.Conteo(); i++)
+            {
+                var lineaPack = (CategoriaPackDetalle)pack.Obtener(i)!;
+                double solicitado = Math.Floor(cantidadCategoria * (lineaPack.Porcentaje / 100.0));
+                if (solicitado < 1) continue;
+
+                if (lineaPack.DiasReposicion.HasValue)
+                {
+                    DateTime? ultimaEntrega = historialServicio.ObtenerUltimaEntregaProducto(beneficiario.Id, lineaPack.ProductoId);
+                    if (ultimaEntrega.HasValue)
+                    {
+                        double dias = (RelojDemo.Ahora - ultimaEntrega.Value).TotalDays;
+                        if (dias < lineaPack.DiasReposicion.Value) continue;
+                    }
+                }
+
+                if (lineaPack.MaximoPorEntrega.HasValue && solicitado > lineaPack.MaximoPorEntrega.Value)
+                {
+                    solicitado = Math.Floor(lineaPack.MaximoPorEntrega.Value);
+                }
+
+                if (lineaPack.StockDisponible <= 0) continue;
+                if (Math.Min(solicitado, Math.Floor(lineaPack.StockDisponible)) >= 1) return true;
+            }
+
+            return false;
+        }
+
+        private (double Deficit, string Explicacion) CalcularDeficit(Beneficiario b, TasaConsumo tasa)
+        {
+            DateTime? ultimaEntrega = historialServicio.ObtenerUltimaEntregaCategoria(b.Id, tasa.IdCategoria);
+            DateTime fechaBase = ultimaEntrega ?? RelojDemo.Ahora;
+            double dias;
+            string fuenteBase;
+
+            if (ultimaEntrega.HasValue)
+            {
+                if (fechaBase > RelojDemo.Ahora) fechaBase = RelojDemo.Ahora;
+                dias = Math.Max(0, (RelojDemo.Ahora - fechaBase).TotalDays);
+                fuenteBase = "última entrega confirmada de la categoría";
+            }
+            else
+            {
+                dias = ObtenerDiasPrimeraEntrega(b.NivelVulnerabilidad);
+                fuenteBase = $"primera entrega / paquete inicial según vulnerabilidad ({dias} días)";
+            }
+
+            double deficitFinal = b.MiembrosHogar * tasa.TasaDiaria * dias;
+            string detalleBase = ultimaEntrega.HasValue ? $"{fuenteBase} ({fechaBase:yyyy-MM-dd HH:mm})" : fuenteBase;
 
             string explicacion = $"Cálculo para {b.Nombre}:\n" +
+                                 $"- Prioridad social aplicada: {b.VulnerabilidadTexto}\n" +
                                  $"- Miembros del hogar: {b.MiembrosHogar}\n" +
-                                 $"- Días registrados en sistema: {Math.Round(dias, 1)} días\n" +
+                                 $"- Base del déficit: {detalleBase}\n" +
+                                 $"- Días usados para cálculo: {Math.Round(dias, 1)} días\n" +
                                  $"- Tasa de consumo: {tasa.TasaDiaria} por persona/día\n" +
-                                 (totalRecibido == 0 ? "- Sin entregas previas: no se acumula deuda por solo estar registrado\n" : "") +
-                                 $"Meta usada para prioridad: {Math.Round(consumoEsperado, 2)}\n" +
-                                 $"- Ya recibido anteriormente: {totalRecibido}\n\n" +
-                                 $"Déficit Total (Meta - Recibido): {Math.Round(deficitFinal, 2)}";
+                                 $"Déficit calculado: {Math.Round(deficitFinal, 2)}";
 
             return (deficitFinal, explicacion);
+        }
+
+        private int ObtenerDiasPrimeraEntrega(int nivelVulnerabilidad)
+        {
+            int nivel = Beneficiario.NormalizarNivelVulnerabilidad(nivelVulnerabilidad);
+            if (nivel == Beneficiario.VulnerabilidadAlta) return DiasPrimeraEntregaAlta;
+            if (nivel == Beneficiario.VulnerabilidadBaja) return DiasPrimeraEntregaBaja;
+            return DiasPrimeraEntregaMedia;
+        }
+
+        private decimal ObtenerPesoVulnerabilidad(int nivelVulnerabilidad)
+        {
+            int nivel = Beneficiario.NormalizarNivelVulnerabilidad(nivelVulnerabilidad);
+            if (nivel == Beneficiario.VulnerabilidadAlta) return 100000m;
+            if (nivel == Beneficiario.VulnerabilidadBaja) return 10000m;
+            return 50000m;
         }
 
         private (ListaEnlazada Lineas, double TotalFisicoAsignado) CrearLineasProducto(InfoDistribucion info, TasaConsumo tasa, ListaEnlazada pack, double cantidadCategoria)
@@ -232,6 +346,8 @@ namespace ProyectoCatedra.Servicios
                 {
                     BeneficiarioId = info.Beneficiario.Id,
                     NombreBeneficiario = info.Beneficiario.Nombre,
+                    NivelVulnerabilidad = info.Beneficiario.NivelVulnerabilidad,
+                    VulnerabilidadTexto = info.Beneficiario.VulnerabilidadTexto,
                     CategoriaId = tasa.IdCategoria,
                     NombreCategoria = tasa.NombreCategoria,
                     ProductoId = lineaPack.ProductoId,

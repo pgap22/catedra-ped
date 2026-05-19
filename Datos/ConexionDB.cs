@@ -28,7 +28,7 @@ namespace ProyectoCatedra.Datos
                     string sqlCat = "CREATE TABLE IF NOT EXISTS Categorias (Id INTEGER PRIMARY KEY AUTOINCREMENT, Nombre TEXT NOT NULL);";
                     string sqlUni = "CREATE TABLE IF NOT EXISTS UnidadesMedida (Id INTEGER PRIMARY KEY AUTOINCREMENT, Nombre TEXT NOT NULL, Tipo TEXT NOT NULL);";
                     string sqlPiv = "CREATE TABLE IF NOT EXISTS CategoriaUnidades (IdCategoria INTEGER, IdUnidad INTEGER, PRIMARY KEY(IdCategoria, IdUnidad));";
-                    string sqlBen = "CREATE TABLE IF NOT EXISTS Beneficiarios (Id INTEGER PRIMARY KEY AUTOINCREMENT, Nombre TEXT NOT NULL, MiembrosHogar INTEGER DEFAULT 1, Activo INTEGER DEFAULT 1, FechaRegistro DATETIME DEFAULT CURRENT_TIMESTAMP);";
+                    string sqlBen = "CREATE TABLE IF NOT EXISTS Beneficiarios (Id INTEGER PRIMARY KEY AUTOINCREMENT, Nombre TEXT NOT NULL, MiembrosHogar INTEGER DEFAULT 1, Activo INTEGER DEFAULT 1, FechaRegistro DATETIME DEFAULT CURRENT_TIMESTAMP, NivelVulnerabilidad INTEGER DEFAULT 2);";
                     string sqlProd = @"CREATE TABLE IF NOT EXISTS Productos (
                                             Id INTEGER PRIMARY KEY AUTOINCREMENT,
                                             SKU TEXT UNIQUE NOT NULL,
@@ -59,6 +59,7 @@ namespace ProyectoCatedra.Datos
 
                 // Intentar añadir columnas a tablas antiguas si la BD ya existía
                 try { new SQLiteCommand("ALTER TABLE Beneficiarios ADD COLUMN FechaRegistro DATETIME DEFAULT CURRENT_TIMESTAMP;", conexion).ExecuteNonQuery(); } catch { /* Ya existe */ }
+                try { new SQLiteCommand("ALTER TABLE Beneficiarios ADD COLUMN NivelVulnerabilidad INTEGER DEFAULT 2;", conexion).ExecuteNonQuery(); } catch { /* Ya existe */ }
                 try { new SQLiteCommand("ALTER TABLE Productos ADD COLUMN IdUnidad INTEGER REFERENCES UnidadesMedida(Id);", conexion).ExecuteNonQuery(); } catch { /* Ya existe */ }
                 try { new SQLiteCommand("ALTER TABLE Productos ADD COLUMN MaximoPorEntrega REAL;", conexion).ExecuteNonQuery(); } catch { /* Ya existe */ }
                 try { new SQLiteCommand("ALTER TABLE Productos ADD COLUMN DiasReposicion INTEGER;", conexion).ExecuteNonQuery(); } catch { /* Ya existe */ }

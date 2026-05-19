@@ -61,42 +61,82 @@ namespace ProyectoCatedra
             
             btnGuardar.Text = "Guardar"; btnGuardar.Location = new Point(15, 110); btnGuardar.Size = new Size(70, 30);
             btnGuardar.Click += (s, e) => {
-                if (string.IsNullOrWhiteSpace(txtNombre.Text) || cbTipo.SelectedIndex == -1) return;
+                if (string.IsNullOrWhiteSpace(txtNombre.Text) || cbTipo.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Complete nombre y tipo de unidad.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
 
                 string nombreNuevo = txtNombre.Text.Trim();
                 string tipoNuevo = cbTipo.SelectedItem?.ToString() ?? "";
 
-                if (YaExisteUnidad(nombreNuevo, tipoNuevo))
+                if (YaExisteUnidad(nombreNuevo, tipoNuevo, -1))
                 {
                     MessageBox.Show("Ya existe una unidad con el mismo nombre y tipo.", "Registro duplicado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                var u = new UnidadMedida { Nombre = nombreNuevo, Tipo = tipoNuevo };
-                servicio.Guardar(u);
-                undoStack.Empujar(new AccionUndo(TipoAccion.Insertar, "Unidades", u));
-                Limpiar(); CargarTodo();
+                try
+                {
+                    var u = new UnidadMedida { Nombre = nombreNuevo, Tipo = tipoNuevo };
+                    servicio.Guardar(u);
+                    undoStack.Empujar(new AccionUndo(TipoAccion.Insertar, "Unidades", u));
+                    Limpiar(); CargarTodo();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("No se pudo guardar la unidad: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             };
 
             btnEditar.Text = "Modificar"; btnEditar.Location = new Point(90, 110); btnEditar.Size = new Size(70, 30); btnEditar.Enabled = false;
             btnEditar.Click += (s, e) => {
                 if (unidadSeleccionada == null) return;
-                var ant = new UnidadMedida { Id = unidadSeleccionada.Id, Nombre = unidadSeleccionada.Nombre, Tipo = unidadSeleccionada.Tipo };
-                
-                unidadSeleccionada.Nombre = txtNombre.Text;
-                unidadSeleccionada.Tipo = cbTipo.SelectedItem?.ToString() ?? "";
-                servicio.Actualizar(unidadSeleccionada);
-                
-                undoStack.Empujar(new AccionUndo(TipoAccion.Editar, "Unidades", ant));
-                Limpiar(); CargarTodo();
+                if (string.IsNullOrWhiteSpace(txtNombre.Text) || cbTipo.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Complete nombre y tipo de unidad.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                string nombreNuevo = txtNombre.Text.Trim();
+                string tipoNuevo = cbTipo.SelectedItem?.ToString() ?? "";
+                if (YaExisteUnidad(nombreNuevo, tipoNuevo, unidadSeleccionada.Id))
+                {
+                    MessageBox.Show("Ya existe otra unidad con el mismo nombre y tipo.", "Registro duplicado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                try
+                {
+                    var ant = new UnidadMedida { Id = unidadSeleccionada.Id, Nombre = unidadSeleccionada.Nombre, Tipo = unidadSeleccionada.Tipo };
+                    unidadSeleccionada.Nombre = nombreNuevo;
+                    unidadSeleccionada.Tipo = tipoNuevo;
+                    servicio.Actualizar(unidadSeleccionada);
+
+                    undoStack.Empujar(new AccionUndo(TipoAccion.Editar, "Unidades", ant));
+                    Limpiar(); CargarTodo();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("No se pudo modificar la unidad: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             };
 
             btnEliminar.Text = "Eliminar"; btnEliminar.Location = new Point(165, 110); btnEliminar.Size = new Size(70, 30); btnEliminar.Enabled = false;
             btnEliminar.Click += (s, e) => {
                 if (unidadSeleccionada == null) return;
-                undoStack.Empujar(new AccionUndo(TipoAccion.Eliminar, "Unidades", unidadSeleccionada));
-                servicio.EliminarUnidad(unidadSeleccionada.Id);
-                Limpiar(); CargarTodo();
+                if (MessageBox.Show("¿Eliminar esta unidad de medida?", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+
+                try
+                {
+                    undoStack.Empujar(new AccionUndo(TipoAccion.Eliminar, "Unidades", unidadSeleccionada));
+                    servicio.EliminarUnidad(unidadSeleccionada.Id);
+                    Limpiar(); CargarTodo();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("No se pudo eliminar la unidad. Puede estar siendo usada por productos o tasas.\n\nDetalle: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             };
 
             gb1.Controls.AddRange(new Control[] { btnNuevo, lblNom, txtNombre, lblTip, cbTipo, btnGuardar, btnEditar, btnEliminar });
@@ -108,21 +148,40 @@ namespace ProyectoCatedra
             
             btnAsociar.Text = "Vincular a Categoría"; btnAsociar.Location = new Point(15, 90); btnAsociar.Size = new Size(150, 30);
             btnAsociar.Click += (s, e) => {
-                if (cbCategorias.SelectedItem == null || dgvUnidades.SelectedRows.Count == 0) return;
-                int idCat = ((Categoria)cbCategorias.SelectedItem).Id;
-                int idUni = (int)dgvUnidades.SelectedRows[0].Cells[0].Value;
-                servicio.AsociarACategoria(idCat, idUni);
-                CargarPivote();
+                if (cbCategorias.SelectedItem == null || dgvUnidades.SelectedRows.Count == 0)
+                {
+                    MessageBox.Show("Seleccione una categoría y una unidad.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                try
+                {
+                    int idCat = ((Categoria)cbCategorias.SelectedItem).Id;
+                    int idUni = (int)dgvUnidades.SelectedRows[0].Cells[0].Value;
+                    servicio.AsociarACategoria(idCat, idUni);
+                    CargarPivote();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("No se pudo vincular la unidad: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             };
 
             btnQuitarAsociacion.Text = "Quitar Vinculo"; btnQuitarAsociacion.Location = new Point(175, 90); btnQuitarAsociacion.Size = new Size(150, 30); btnQuitarAsociacion.Enabled = false;
             btnQuitarAsociacion.Click += (s, e) => {
                 if (cbCategorias.SelectedItem == null || dgvPivote.SelectedRows.Count == 0) return;
-                int idCat = ((Categoria)cbCategorias.SelectedItem).Id;
-                string nombreUnidad = dgvPivote.SelectedRows[0].Cells[1].Value?.ToString() ?? "";
-                int idUni = servicio.ObtenerIdPorNombre(nombreUnidad);
-                if (idUni != -1) servicio.EliminarAsociacion(idCat, idUni);
-                CargarPivote();
+                try
+                {
+                    int idCat = ((Categoria)cbCategorias.SelectedItem).Id;
+                    string nombreUnidad = dgvPivote.SelectedRows[0].Cells[1].Value?.ToString() ?? "";
+                    int idUni = servicio.ObtenerIdPorNombre(nombreUnidad);
+                    if (idUni != -1) servicio.EliminarAsociacion(idCat, idUni);
+                    CargarPivote();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("No se pudo quitar el vínculo: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             };
 
             gb2.Controls.AddRange(new Control[] { lblCat, cbCategorias, btnAsociar, btnQuitarAsociacion });
@@ -158,8 +217,10 @@ namespace ProyectoCatedra
             // Botones inferiores
             btnUndo.Text = "Deshacer último cambio manual"; btnUndo.Location = new Point(20, 450); btnUndo.Size = new Size(180, 30);
             btnUndo.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            btnUndo.Click += BtnUndo_Click;
             btnImp.Text = "Importar CSV"; btnImp.Location = new Point(210, 450); btnImp.Size = new Size(100, 30);
             btnImp.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            btnImp.Click += BtnImportar_Click;
             btnPlantilla.Text = "Bajar Plantilla"; btnPlantilla.Location = new Point(320, 450); btnPlantilla.Size = new Size(110, 30);
             btnPlantilla.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             btnPlantilla.Click += (s, e) => ManejadorCSV.GuardarPlantillaConDialogo("plantilla_unidades.csv", "Nombre,Tipo\nLibra,Peso (lb/kg)\nLitro,Volumen (lt/ml)\nBolsa,Unidad (pza/bolsa)");
@@ -223,7 +284,91 @@ namespace ProyectoCatedra
             }
         }
 
-        private bool YaExisteUnidad(string nombre, string tipo)
+        private void BtnImportar_Click(object? sender, EventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog { Filter = "Archivo CSV (*.csv)|*.csv" };
+            if (ofd.ShowDialog() != DialogResult.OK) return;
+
+            try
+            {
+                ListaEnlazada unidadesCsv = ManejadorCSV.ParsearUnidades(ofd.FileName);
+                int totalCsv = ManejadorCSV.ContarFilasDatos(ofd.FileName);
+                int invalidas = totalCsv - unidadesCsv.Conteo();
+                int duplicadas = 0;
+                ListaEnlazada insertadas = new ListaEnlazada();
+
+                for (int i = 0; i < unidadesCsv.Conteo(); i++)
+                {
+                    var u = (UnidadMedida?)unidadesCsv.Obtener(i);
+                    if (u == null) continue;
+
+                    if (YaExisteUnidad(u.Nombre, u.Tipo, -1))
+                    {
+                        duplicadas++;
+                        continue;
+                    }
+
+                    servicio.Guardar(u);
+                    insertadas.Agregar(u);
+                }
+
+                if (insertadas.Conteo() > 0)
+                {
+                    undoStack.Empujar(new AccionUndo(TipoAccion.Importacion, "Unidades", insertadas));
+                }
+
+                MessageBox.Show($"Importación finalizada.\nInsertadas: {insertadas.Conteo()}\nDuplicadas: {duplicadas}\nInválidas o vacías: {invalidas}", "Importar", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Limpiar(); CargarTodo();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("No se pudo importar el CSV: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnUndo_Click(object? sender, EventArgs e)
+        {
+            var acc = (AccionUndo?)undoStack.Pop();
+            if (acc == null)
+            {
+                MessageBox.Show("No hay cambios para deshacer.", "Deshacer", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                if (acc.Tipo == TipoAccion.Importacion)
+                {
+                    var lista = (ListaEnlazada)acc.Datos;
+                    for (int i = 0; i < lista.Conteo(); i++)
+                    {
+                        var u = (UnidadMedida?)lista.Obtener(i);
+                        if (u == null) continue;
+                        int id = servicio.ObtenerIdPorNombre(u.Nombre);
+                        if (id != -1) servicio.EliminarUnidad(id);
+                    }
+                }
+                else
+                {
+                    var u = (UnidadMedida)acc.Datos;
+                    if (acc.Tipo == TipoAccion.Insertar)
+                    {
+                        int id = servicio.ObtenerIdPorNombre(u.Nombre);
+                        if (id != -1) servicio.EliminarUnidad(id);
+                    }
+                    else if (acc.Tipo == TipoAccion.Editar) servicio.Actualizar(u);
+                    else if (acc.Tipo == TipoAccion.Eliminar) servicio.Guardar(u);
+                }
+
+                Limpiar(); CargarTodo();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("No se pudo deshacer el cambio: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private bool YaExisteUnidad(string nombre, string tipo, int idExcluir)
         {
             TablaHash indice = new TablaHash(211);
             ListaEnlazada unidades = servicio.ListarTodas();
@@ -232,6 +377,7 @@ namespace ProyectoCatedra
             {
                 UnidadMedida? u = (UnidadMedida?)unidades.Obtener(i);
                 if (u == null) continue;
+                if (u.Id == idExcluir) continue;
 
                 string claveActual = ConstruirClaveUnidad(u.Nombre, u.Tipo);
                 indice.Insertar(claveActual, u.Id);

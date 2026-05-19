@@ -86,6 +86,30 @@ namespace ProyectoCatedra.Servicios
                 }
             }
         }
+
+        public DateTime? ObtenerUltimaEntregaCategoria(int beneficiarioId, int categoriaId)
+        {
+            using (var conexion = conexionDB.ObtenerConexion())
+            {
+                conexion.Open();
+                string sql = @"
+                    SELECT MAX(o.FechaGeneracion)
+                    FROM OrdenDetalle od
+                    INNER JOIN Orden o ON od.OrdenId = o.Id
+                    WHERE o.Estado = 'CONFIRMADA'
+                      AND od.BeneficiarioId = @beneficiarioId
+                      AND od.CategoriaId = @categoriaId";
+
+                using (var cmd = new SQLiteCommand(sql, conexion))
+                {
+                    cmd.Parameters.AddWithValue("@beneficiarioId", beneficiarioId);
+                    cmd.Parameters.AddWithValue("@categoriaId", categoriaId);
+                    var resultado = cmd.ExecuteScalar();
+                    if (resultado == null || resultado == DBNull.Value) return null;
+                    return Convert.ToDateTime(resultado);
+                }
+            }
+        }
     }
 
     public class RegistroHistorial

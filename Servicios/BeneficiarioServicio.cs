@@ -25,12 +25,13 @@ namespace ProyectoCatedra.Servicios
             using (var conexion = conexionDB.ObtenerConexion())
             {
                 conexion.Open();
-                string sql = "INSERT INTO Beneficiarios (Nombre, MiembrosHogar, Activo) VALUES (@nombre, @miembros, @activo); SELECT last_insert_rowid();";
+                string sql = "INSERT INTO Beneficiarios (Nombre, MiembrosHogar, Activo, NivelVulnerabilidad) VALUES (@nombre, @miembros, @activo, @nivel); SELECT last_insert_rowid();";
                 using (var comando = new SQLiteCommand(sql, conexion))
                 {
                     comando.Parameters.AddWithValue("@nombre", b.Nombre);
                     comando.Parameters.AddWithValue("@miembros", b.MiembrosHogar);
                     comando.Parameters.AddWithValue("@activo", b.Activo ? 1 : 0);
+                    comando.Parameters.AddWithValue("@nivel", Beneficiario.NormalizarNivelVulnerabilidad(b.NivelVulnerabilidad));
                     b.Id = Convert.ToInt32(comando.ExecuteScalar());
                 }
             }
@@ -47,6 +48,7 @@ namespace ProyectoCatedra.Servicios
             string nombreAnterior = actual.Nombre;
             int miembrosAnterior = actual.MiembrosHogar;
             bool activoAnterior = actual.Activo;
+            int nivelAnterior = actual.NivelVulnerabilidad;
 
             arbolPorNombre.EliminarValor(actual.Nombre, valor => ((Beneficiario)valor).Id == b.Id);
 
@@ -55,12 +57,13 @@ namespace ProyectoCatedra.Servicios
                 using (var conexion = conexionDB.ObtenerConexion())
                 {
                     conexion.Open();
-                    string sql = "UPDATE Beneficiarios SET Nombre = @nombre, MiembrosHogar = @miembros, Activo = @activo WHERE Id = @id";
+                    string sql = "UPDATE Beneficiarios SET Nombre = @nombre, MiembrosHogar = @miembros, Activo = @activo, NivelVulnerabilidad = @nivel WHERE Id = @id";
                     using (var comando = new SQLiteCommand(sql, conexion))
                     {
                         comando.Parameters.AddWithValue("@nombre", b.Nombre);
                         comando.Parameters.AddWithValue("@miembros", b.MiembrosHogar);
                         comando.Parameters.AddWithValue("@activo", b.Activo ? 1 : 0);
+                        comando.Parameters.AddWithValue("@nivel", Beneficiario.NormalizarNivelVulnerabilidad(b.NivelVulnerabilidad));
                         comando.Parameters.AddWithValue("@id", b.Id);
                         comando.ExecuteNonQuery();
                     }
@@ -69,6 +72,7 @@ namespace ProyectoCatedra.Servicios
                 actual.Nombre = b.Nombre;
                 actual.MiembrosHogar = b.MiembrosHogar;
                 actual.Activo = b.Activo;
+                actual.NivelVulnerabilidad = Beneficiario.NormalizarNivelVulnerabilidad(b.NivelVulnerabilidad);
                 arbolPorNombre.Insertar(actual.Nombre, actual);
             }
             catch
@@ -76,6 +80,7 @@ namespace ProyectoCatedra.Servicios
                 actual.Nombre = nombreAnterior;
                 actual.MiembrosHogar = miembrosAnterior;
                 actual.Activo = activoAnterior;
+                actual.NivelVulnerabilidad = nivelAnterior;
                 arbolPorNombre.Insertar(actual.Nombre, actual);
                 throw;
             }
@@ -137,7 +142,10 @@ namespace ProyectoCatedra.Servicios
                             Nombre = lector["Nombre"]?.ToString() ?? string.Empty,
                             MiembrosHogar = Convert.ToInt32(lector["MiembrosHogar"]),
                             Activo = Convert.ToInt32(lector["Activo"]) == 1,
-                            FechaRegistro = lector["FechaRegistro"] != DBNull.Value ? Convert.ToDateTime(lector["FechaRegistro"]) : DateTime.Now
+                            FechaRegistro = lector["FechaRegistro"] != DBNull.Value ? Convert.ToDateTime(lector["FechaRegistro"]) : DateTime.Now,
+                            NivelVulnerabilidad = lector["NivelVulnerabilidad"] != DBNull.Value
+                                ? Beneficiario.NormalizarNivelVulnerabilidad(Convert.ToInt32(lector["NivelVulnerabilidad"]))
+                                : Beneficiario.VulnerabilidadMedia
                         };
 
                         AgregarEnIndices(beneficiario);

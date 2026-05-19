@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using ProyectoCatedra.Servicios;
@@ -16,13 +17,16 @@ namespace ProyectoCatedra
         private DataGridView dgv = new DataGridView();
         private Button btnGenerar = new Button();
         private Button btnConfirmar = new Button();
+        private Button btnConfirmarFamilia = new Button();
         private Button btnDeshacer = new Button();
         private TextBox txtObservaciones = new TextBox();
         private ComboBox cbFiltroCategoria = new ComboBox();
-        private TextBox txtFiltroBeneficiario = new TextBox();
         private Button btnFiltrar = new Button();
         private Button btnLimpiarFiltro = new Button();
+        private Button btnExpandirTodo = new Button();
+        private Button btnColapsarTodo = new Button();
         private CategoriaServicio categoriaServicio = new CategoriaServicio();
+        private HashSet<int> familiasColapsadas = new HashSet<int>();
         
         private ListaEnlazada? propuestaActual;
 
@@ -54,25 +58,37 @@ namespace ProyectoCatedra
             cbFiltroCategoria.DropDownStyle = ComboBoxStyle.DropDownList;
             CargarFiltroCategorias();
 
-            Label lblFiltroBen = new Label { Text = "Beneficiario:", Location = new Point(240, 60), AutoSize = true };
-            txtFiltroBeneficiario.Location = new Point(315, 57);
-            txtFiltroBeneficiario.Size = new Size(150, 25);
-            
             btnFiltrar.Text = "Aplicar Filtros";
-            btnFiltrar.Location = new Point(480, 55);
+            btnFiltrar.Location = new Point(240, 55);
             btnFiltrar.Size = new Size(100, 28);
             btnFiltrar.Click += BtnFiltrar_Click;
 
             btnLimpiarFiltro.Text = "Limpiar Filtros";
-            btnLimpiarFiltro.Location = new Point(590, 55);
+            btnLimpiarFiltro.Location = new Point(350, 55);
             btnLimpiarFiltro.Size = new Size(100, 28);
             btnLimpiarFiltro.Click += BtnLimpiarFiltro_Click;
+
+            btnExpandirTodo.Text = "Expandir todo";
+            btnExpandirTodo.Location = new Point(480, 55);
+            btnExpandirTodo.Size = new Size(105, 28);
+            btnExpandirTodo.Click += (s, e) => { familiasColapsadas.Clear(); MostrarPropuesta(); };
+
+            btnColapsarTodo.Text = "Colapsar todo";
+            btnColapsarTodo.Location = new Point(595, 55);
+            btnColapsarTodo.Size = new Size(105, 28);
+            btnColapsarTodo.Click += (s, e) => ColapsarTodasLasFamiliasVisibles();
 
             Label lblObs = new Label { Text = "Observaciones:", Location = new Point(370, 20), AutoSize = true };
             txtObservaciones.Location = new Point(460, 17);
             txtObservaciones.Size = new Size(310, 25);
 
-            btnConfirmar.Text = "Confirmar y Guardar Entrega"; btnConfirmar.Location = new Point(590, 95); btnConfirmar.Size = new Size(180, 35);
+            btnConfirmarFamilia.Text = "Entregar Familia Seleccionada"; btnConfirmarFamilia.Location = new Point(385, 95); btnConfirmarFamilia.Size = new Size(195, 35);
+            btnConfirmarFamilia.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnConfirmarFamilia.BackColor = Color.LightSkyBlue;
+            btnConfirmarFamilia.Enabled = false;
+            btnConfirmarFamilia.Click += BtnConfirmarFamilia_Click;
+
+            btnConfirmar.Text = "Entregar Todos Mostrados"; btnConfirmar.Location = new Point(590, 95); btnConfirmar.Size = new Size(180, 35);
             btnConfirmar.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             btnConfirmar.BackColor = Color.LightGreen;
             btnConfirmar.Enabled = false;
@@ -86,12 +102,10 @@ namespace ProyectoCatedra
             dgv.AllowUserToAddRows = false; 
             dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
-            dgv.Columns.Add("Beneficiario", "Beneficiario");
-            dgv.Columns["Beneficiario"].ReadOnly = true;
+            dgv.Columns.Add("Detalle", "Familia / Producto");
+            dgv.Columns["Detalle"].ReadOnly = true;
             dgv.Columns.Add("Categoria", "Categoría");
             dgv.Columns["Categoria"].ReadOnly = true;
-            dgv.Columns.Add("Producto", "Producto");
-            dgv.Columns["Producto"].ReadOnly = true;
             dgv.Columns.Add("SKU", "SKU");
             dgv.Columns["SKU"].ReadOnly = true;
             dgv.Columns.Add("Asignado", "A entregar");
@@ -104,27 +118,34 @@ namespace ProyectoCatedra
             dgv.Columns.Add("BId", "BId"); dgv.Columns["BId"].Visible = false;
             dgv.Columns.Add("CId", "CId"); dgv.Columns["CId"].Visible = false;
             dgv.Columns.Add("PId", "PId"); dgv.Columns["PId"].Visible = false;
+            dgv.Columns.Add("NivelVulnerabilidad", "NivelVulnerabilidad"); dgv.Columns["NivelVulnerabilidad"].Visible = false;
             dgv.Columns.Add("Explicacion", "Explicacion"); dgv.Columns["Explicacion"].Visible = false;
+            dgv.Columns.Add("Beneficiario", "Beneficiario"); dgv.Columns["Beneficiario"].Visible = false;
+            dgv.Columns.Add("Vulnerabilidad", "Vulnerabilidad"); dgv.Columns["Vulnerabilidad"].Visible = false;
+            dgv.Columns.Add("Producto", "Producto"); dgv.Columns["Producto"].Visible = false;
+            dgv.Columns.Add("EsGrupo", "EsGrupo"); dgv.Columns["EsGrupo"].Visible = false;
 
             dgv.CellBeginEdit += Dgv_CellBeginEdit;
             dgv.CellEndEdit += Dgv_CellEndEdit;
             dgv.CellDoubleClick += Dgv_CellDoubleClick;
+            dgv.SelectionChanged += (s, e) => ActualizarBotonesEntrega();
 
             this.Controls.Add(btnGenerar);
             this.Controls.Add(btnDeshacer);
             this.Controls.Add(lblFiltroCat);
             this.Controls.Add(cbFiltroCategoria);
-            this.Controls.Add(lblFiltroBen);
-            this.Controls.Add(txtFiltroBeneficiario);
             this.Controls.Add(btnFiltrar);
             this.Controls.Add(btnLimpiarFiltro);
+            this.Controls.Add(btnExpandirTodo);
+            this.Controls.Add(btnColapsarTodo);
             this.Controls.Add(lblObs);
             this.Controls.Add(txtObservaciones);
+            this.Controls.Add(btnConfirmarFamilia);
             this.Controls.Add(btnConfirmar);
             this.Controls.Add(dgv);
             
             Label lblAyuda = new Label { 
-                Text = "Nota: Haz doble clic en la columna 'A entregar' para ajustar la cantidad manual. Doble clic en cualquier otro lado para ver el cálculo.", 
+                Text = "Nota: doble clic en una familia para expandir/colapsar. En productos, doble clic fuera de 'A entregar' muestra el cálculo.", 
                 Location = new Point(20, 460), 
                 AutoSize = true, 
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Left,
@@ -135,6 +156,10 @@ namespace ProyectoCatedra
             
             this.Activated += (s, e) => {
                 CargarFiltroCategorias();
+            };
+
+            cbFiltroCategoria.SelectedIndexChanged += (s, e) => {
+                if (propuestaActual != null) MostrarPropuesta();
             };
         }
 
@@ -184,7 +209,6 @@ namespace ProyectoCatedra
 
         private void BtnLimpiarFiltro_Click(object? sender, EventArgs e)
         {
-            txtFiltroBeneficiario.Clear();
             cbFiltroCategoria.SelectedIndex = 0;
             if (propuestaActual != null) MostrarPropuesta();
         }
@@ -209,11 +233,15 @@ namespace ProyectoCatedra
             }
             if (propuestaActual.Conteo() == 0)
             {
-                MessageBox.Show("No hay distribuciones sugeridas (falta inventario, beneficiarios activos, tasas o packs de categoría configurados al 100%).");
+                string diagnostico = servicio.ObtenerDiagnosticoSinPropuesta(categoriaIdFiltro);
+                MessageBox.Show("No hay distribuciones sugeridas.\n\nMotivo principal:\n" + diagnostico, "Distribución", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 dgv.Rows.Clear();
                 return;
             }
 
+            undoStack = new Pila();
+            btnDeshacer.Enabled = false;
+            familiasColapsadas.Clear();
             stockPorProducto = new TablaHash(100);
             for (int i = 0; i < propuestaActual.Conteo(); i++)
             {
@@ -233,10 +261,6 @@ namespace ProyectoCatedra
             if (propuestaActual == null) return;
             
             dgv.Rows.Clear();
-            undoStack = new Pila(); // reset undo stack
-            btnDeshacer.Enabled = false;
-            
-            string filtroNom = txtFiltroBeneficiario.Text.Trim().ToLower();
             
             int categoriaIdFiltro = 0;
             if (cbFiltroCategoria.SelectedItem != null)
@@ -245,24 +269,84 @@ namespace ProyectoCatedra
                 categoriaIdFiltro = catObj.Id;
             }
 
+            List<int> ordenFamilias = new List<int>();
+            Dictionary<int, List<OrdenDetalle>> detallesPorFamilia = new Dictionary<int, List<OrdenDetalle>>();
+            Dictionary<int, OrdenDetalle> resumenFamilia = new Dictionary<int, OrdenDetalle>();
+
             for (int i = 0; i < propuestaActual.Conteo(); i++)
             {
                 var det = (OrdenDetalle)propuestaActual.Obtener(i)!;
-                
-                // Aplicar filtros visuales
                 if (categoriaIdFiltro > 0 && det.CategoriaId != categoriaIdFiltro) continue;
-                if (!string.IsNullOrEmpty(filtroNom) && !det.NombreBeneficiario.ToLower().Contains(filtroNom)) continue;
 
-                dgv.Rows.Add(det.NombreBeneficiario, det.NombreCategoria, det.NombreProductoSugerido, det.SKUProductoSugerido, det.CantidadAsignada, det.NombreUnidadMedida, det.DeficitCalculado, det.BeneficiarioId, det.CategoriaId, det.ProductoId, det.ExplicacionCalculo);
+                if (!detallesPorFamilia.ContainsKey(det.BeneficiarioId))
+                {
+                    ordenFamilias.Add(det.BeneficiarioId);
+                    detallesPorFamilia[det.BeneficiarioId] = new List<OrdenDetalle>();
+                    resumenFamilia[det.BeneficiarioId] = det;
+                }
+
+                detallesPorFamilia[det.BeneficiarioId].Add(det);
             }
 
-            btnConfirmar.Enabled = dgv.Rows.Count > 0;
+            foreach (int beneficiarioId in ordenFamilias)
+            {
+                OrdenDetalle resumen = resumenFamilia[beneficiarioId];
+                List<OrdenDetalle> detalles = detallesPorFamilia[beneficiarioId];
+                bool colapsada = familiasColapsadas.Contains(beneficiarioId);
+                string icono = colapsada ? ">" : "v";
+                int filaGrupo = dgv.Rows.Add($"{icono} {resumen.NombreBeneficiario} - {resumen.VulnerabilidadTexto}", $"{detalles.Count} productos", "", "", "", "", resumen.BeneficiarioId, 0, 0, resumen.NivelVulnerabilidad, "", resumen.NombreBeneficiario, resumen.VulnerabilidadTexto, "", "1");
+                AplicarEstiloFilaGrupo(dgv.Rows[filaGrupo]);
+
+                if (colapsada) continue;
+
+                foreach (OrdenDetalle det in detalles)
+                {
+                    int filaDetalle = dgv.Rows.Add("   " + det.NombreProductoSugerido, det.NombreCategoria, det.SKUProductoSugerido, det.CantidadAsignada, det.NombreUnidadMedida, det.DeficitCalculado, det.BeneficiarioId, det.CategoriaId, det.ProductoId, det.NivelVulnerabilidad, det.ExplicacionCalculo, det.NombreBeneficiario, det.VulnerabilidadTexto, det.NombreProductoSugerido, "0");
+                    dgv.Rows[filaDetalle].Cells["Asignado"].ReadOnly = false;
+                }
+            }
+
+            ActualizarBotonesEntrega();
+        }
+
+        private void AplicarEstiloFilaGrupo(DataGridViewRow row)
+        {
+            row.ReadOnly = true;
+            row.DefaultCellStyle.BackColor = Color.Gainsboro;
+            row.DefaultCellStyle.Font = new Font(dgv.Font, FontStyle.Bold);
+            row.DefaultCellStyle.ForeColor = Color.Black;
+        }
+
+        private void ColapsarTodasLasFamiliasVisibles()
+        {
+            if (propuestaActual == null) return;
+            familiasColapsadas.Clear();
+            int categoriaIdFiltro = 0;
+            if (cbFiltroCategoria.SelectedItem != null)
+            {
+                categoriaIdFiltro = ((ProyectoCatedra.Modelos.Categoria)cbFiltroCategoria.SelectedItem).Id;
+            }
+
+            for (int i = 0; i < propuestaActual.Conteo(); i++)
+            {
+                var det = (OrdenDetalle)propuestaActual.Obtener(i)!;
+                if (categoriaIdFiltro > 0 && det.CategoriaId != categoriaIdFiltro) continue;
+                familiasColapsadas.Add(det.BeneficiarioId);
+            }
+
+            MostrarPropuesta();
         }
 
         private double valorAnteriorCelda;
 
         private void Dgv_CellBeginEdit(object? sender, DataGridViewCellCancelEventArgs e)
         {
+            if (EsFilaGrupo(dgv.Rows[e.RowIndex]) || dgv.Columns[e.ColumnIndex].Name != "Asignado")
+            {
+                e.Cancel = true;
+                return;
+            }
+
             if (dgv.Columns[e.ColumnIndex].Name == "Asignado")
             {
                 var val = dgv.Rows[e.RowIndex].Cells[e.ColumnIndex].Value;
@@ -272,6 +356,8 @@ namespace ProyectoCatedra
 
         private void Dgv_CellEndEdit(object? sender, DataGridViewCellEventArgs e)
         {
+            if (e.RowIndex < 0 || EsFilaGrupo(dgv.Rows[e.RowIndex])) return;
+
             if (dgv.Columns[e.ColumnIndex].Name == "Asignado")
             {
                 var val = dgv.Rows[e.RowIndex].Cells[e.ColumnIndex].Value;
@@ -283,50 +369,22 @@ namespace ProyectoCatedra
                 }
                 nuevoValor = Math.Floor(nuevoValor);
 
-                if (nuevoValor > valorAnteriorCelda)
+                int idBen = Convert.ToInt32(dgv.Rows[e.RowIndex].Cells["BId"].Value);
+                int idCat = Convert.ToInt32(dgv.Rows[e.RowIndex].Cells["CId"].Value);
+                int idProducto = Convert.ToInt32(dgv.Rows[e.RowIndex].Cells["PId"].Value);
+                double stockDisponible = ObtenerStockDisponibleProducto(idProducto);
+                if (nuevoValor > stockDisponible)
                 {
-                    string idProducto = dgv.Rows[e.RowIndex].Cells["PId"].Value.ToString() ?? "";
-                     
-                    double stockDisponible = (double?)stockPorProducto.Buscar(idProducto) ?? 0;
-                    double totalAsignadoProducto = 0;
-                     
-                    // Sumar todo lo asignado en la propuesta
-                    for (int i = 0; i < propuestaActual!.Conteo(); i++)
-                    {
-                        var det = (OrdenDetalle)propuestaActual.Obtener(i)!;
-                        if (det.ProductoId.ToString() == idProducto)
-                        {
-                            totalAsignadoProducto += det.CantidadAsignada;
-                        }
-                    }
-
-                    double diferencia = nuevoValor - valorAnteriorCelda;
-                    if (totalAsignadoProducto + diferencia > stockDisponible)
-                    {
-                        MessageBox.Show($"No hay suficiente inventario para ese producto.\n\nDisponible total: {stockDisponible}\nAsignado total: {totalAsignadoProducto}\n\nNo se puede aumentar más.", "Límite de Stock", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        dgv.Rows[e.RowIndex].Cells[e.ColumnIndex].Value = valorAnteriorCelda;
-                        return;
-                    }
+                    MessageBox.Show($"No hay suficiente inventario para ese producto.\n\nDisponible actual: {stockDisponible}\nCantidad solicitada: {nuevoValor}", "Límite de Stock", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    dgv.Rows[e.RowIndex].Cells[e.ColumnIndex].Value = valorAnteriorCelda;
+                    return;
                 }
 
                 dgv.Rows[e.RowIndex].Cells[e.ColumnIndex].Value = nuevoValor;
                 
                 if (nuevoValor != valorAnteriorCelda)
                 {
-                    // Actualizar propuesta
-                    int idBen = Convert.ToInt32(dgv.Rows[e.RowIndex].Cells["BId"].Value);
-                    int idCat = Convert.ToInt32(dgv.Rows[e.RowIndex].Cells["CId"].Value);
-                    int idProducto = Convert.ToInt32(dgv.Rows[e.RowIndex].Cells["PId"].Value);
-                     
-                    for (int i = 0; i < propuestaActual!.Conteo(); i++)
-                    {
-                        var det = (OrdenDetalle)propuestaActual.Obtener(i)!;
-                        if (det.BeneficiarioId == idBen && det.CategoriaId == idCat && det.ProductoId == idProducto)
-                        {
-                            det.CantidadAsignada = nuevoValor;
-                            break;
-                        }
-                    }
+                    ActualizarCantidadPropuesta(idBen, idCat, idProducto, nuevoValor);
 
                     // Guardar en la pila para deshacer
                     var accion = new AccionEdicionCelda
@@ -340,13 +398,29 @@ namespace ProyectoCatedra
                     };
                     undoStack.Empujar(accion);
                     btnDeshacer.Enabled = true;
+
+                    bool huboAjuste = AjustarAsignacionesPorStock(idProducto, idBen, idCat);
+                    LimpiarAsignacionesSinCantidad();
+                    MostrarPropuesta();
+                    if (huboAjuste)
+                    {
+                        MessageBox.Show("Se refrescó la propuesta pendiente para que el total asignado no exceda el stock disponible.", "Propuesta actualizada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
                 }
             }
         }
 
         private void Dgv_CellDoubleClick(object? sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex >= 0 && dgv.Columns[e.ColumnIndex].Name != "Asignado")
+            if (e.RowIndex < 0) return;
+
+            if (EsFilaGrupo(dgv.Rows[e.RowIndex]))
+            {
+                AlternarFamilia(dgv.Rows[e.RowIndex]);
+                return;
+            }
+
+            if (dgv.Columns[e.ColumnIndex].Name != "Asignado")
             {
                 var explicacion = dgv.Rows[e.RowIndex].Cells["Explicacion"].Value?.ToString();
                 if (!string.IsNullOrEmpty(explicacion))
@@ -356,51 +430,193 @@ namespace ProyectoCatedra
             }
         }
 
+        private bool EsFilaGrupo(DataGridViewRow row)
+        {
+            return row.Cells["EsGrupo"].Value?.ToString() == "1";
+        }
+
+        private void AlternarFamilia(DataGridViewRow row)
+        {
+            int beneficiarioId = Convert.ToInt32(row.Cells["BId"].Value);
+            if (beneficiarioId <= 0) return;
+
+            if (familiasColapsadas.Contains(beneficiarioId)) familiasColapsadas.Remove(beneficiarioId);
+            else familiasColapsadas.Add(beneficiarioId);
+
+            MostrarPropuesta();
+        }
+
         private void BtnDeshacer_Click(object? sender, EventArgs e)
         {
             var accionObj = undoStack.Pop();
             if (accionObj != null)
             {
                 var accion = (AccionEdicionCelda)accionObj;
-                dgv.Rows[accion.Fila].Cells[accion.Columna].Value = accion.ValorAnterior;
                 ActualizarCantidadPropuesta(accion.BeneficiarioId, accion.CategoriaId, accion.ProductoId, accion.ValorAnterior);
+                AjustarAsignacionesPorStock(accion.ProductoId, accion.BeneficiarioId, accion.CategoriaId);
+                LimpiarAsignacionesSinCantidad();
+                MostrarPropuesta();
             }
             if (undoStack.EstaVacia()) btnDeshacer.Enabled = false;
+        }
+
+        private void BtnConfirmarFamilia_Click(object? sender, EventArgs e)
+        {
+            if (!ObtenerBeneficiarioSeleccionado(out int beneficiarioId, out string nombreBeneficiario))
+            {
+                MessageBox.Show("Seleccione el encabezado de una familia o uno de sus productos.", "Entrega por familia", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            ListaEnlazada detalles = CrearDetallesPorBeneficiario(beneficiarioId);
+            ConfirmarDetalles(detalles, $"Entrega para familia: {nombreBeneficiario}");
         }
 
         private void BtnConfirmar_Click(object? sender, EventArgs e)
         {
             if (dgv.Rows.Count == 0) return;
 
-            if (MessageBox.Show("¿Está seguro de confirmar esta distribución? Esta acción descontará el inventario permanentemente.", "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
-            {
-                ListaEnlazada detallesFinales = new ListaEnlazada();
-                for (int i = 0; i < dgv.Rows.Count; i++)
-                {
-                    double asignado = Math.Floor(Convert.ToDouble(dgv.Rows[i].Cells["Asignado"].Value));
-                    if (asignado > 0)
-                    {
-                        detallesFinales.Agregar(new OrdenDetalle
-                        {
-                            BeneficiarioId = Convert.ToInt32(dgv.Rows[i].Cells["BId"].Value),
-                            CategoriaId = Convert.ToInt32(dgv.Rows[i].Cells["CId"].Value),
-                            ProductoId = Convert.ToInt32(dgv.Rows[i].Cells["PId"].Value),
-                            CantidadAsignada = asignado,
-                            DeficitCalculado = Convert.ToDouble(dgv.Rows[i].Cells["Deficit"].Value)
-                        });
-                    }
-                }
+            ListaEnlazada detallesFinales = CrearDetallesDesdeFilas(row => true);
+            ConfirmarDetalles(detallesFinales, "Entrega para todos los beneficiarios mostrados");
+        }
 
-                try
+        private bool ObtenerBeneficiarioSeleccionado(out int beneficiarioId, out string nombreBeneficiario)
+        {
+            beneficiarioId = 0;
+            nombreBeneficiario = "";
+            if (dgv.Rows.Count == 0) return false;
+
+            int rowIndex = dgv.CurrentCell?.RowIndex ?? -1;
+            if (rowIndex < 0 && dgv.SelectedCells.Count > 0)
+            {
+                rowIndex = dgv.SelectedCells[0].RowIndex;
+            }
+
+            if (rowIndex < 0) return false;
+
+            var row = dgv.Rows[rowIndex];
+            beneficiarioId = Convert.ToInt32(row.Cells["BId"].Value);
+            nombreBeneficiario = row.Cells["Beneficiario"].Value?.ToString() ?? row.Cells["Detalle"].Value?.ToString() ?? "";
+            return beneficiarioId > 0;
+        }
+
+        private ListaEnlazada CrearDetallesDesdeFilas(Func<DataGridViewRow, bool> incluirFila)
+        {
+            ListaEnlazada detalles = new ListaEnlazada();
+            for (int i = 0; i < dgv.Rows.Count; i++)
+            {
+                var row = dgv.Rows[i];
+                if (row.IsNewRow || !incluirFila(row)) continue;
+                if (EsFilaGrupo(row)) continue;
+
+                double asignado = Math.Floor(Convert.ToDouble(row.Cells["Asignado"].Value));
+                if (asignado <= 0) continue;
+
+                detalles.Agregar(new OrdenDetalle
                 {
-                    servicio.ConfirmarDistribucion(detallesFinales, txtObservaciones.Text);
-                    MessageBox.Show("Distribución confirmada y stock actualizado exitosamente.");
+                    BeneficiarioId = Convert.ToInt32(row.Cells["BId"].Value),
+                    NombreBeneficiario = row.Cells["Beneficiario"].Value?.ToString() ?? "",
+                    NivelVulnerabilidad = Convert.ToInt32(row.Cells["NivelVulnerabilidad"].Value),
+                    VulnerabilidadTexto = row.Cells["Vulnerabilidad"].Value?.ToString() ?? Beneficiario.ObtenerEtiquetaVulnerabilidad(Beneficiario.VulnerabilidadMedia),
+                    CategoriaId = Convert.ToInt32(row.Cells["CId"].Value),
+                    NombreCategoria = row.Cells["Categoria"].Value?.ToString() ?? "",
+                    ProductoId = Convert.ToInt32(row.Cells["PId"].Value),
+                    NombreProductoSugerido = row.Cells["Producto"].Value?.ToString() ?? "",
+                    SKUProductoSugerido = row.Cells["SKU"].Value?.ToString() ?? "",
+                    NombreUnidadMedida = row.Cells["Unidad"].Value?.ToString() ?? "",
+                    CantidadAsignada = asignado,
+                    DeficitCalculado = Convert.ToDouble(row.Cells["Deficit"].Value)
+                });
+            }
+
+            return detalles;
+        }
+
+        private ListaEnlazada CrearDetallesPorBeneficiario(int beneficiarioId)
+        {
+            ListaEnlazada detalles = new ListaEnlazada();
+            if (propuestaActual == null) return detalles;
+
+            int categoriaIdFiltro = 0;
+            if (cbFiltroCategoria.SelectedItem != null)
+            {
+                categoriaIdFiltro = ((ProyectoCatedra.Modelos.Categoria)cbFiltroCategoria.SelectedItem).Id;
+            }
+
+            for (int i = 0; i < propuestaActual.Conteo(); i++)
+            {
+                var det = (OrdenDetalle)propuestaActual.Obtener(i)!;
+                double asignado = Math.Floor(det.CantidadAsignada);
+                if (det.BeneficiarioId != beneficiarioId || asignado <= 0) continue;
+                if (categoriaIdFiltro > 0 && det.CategoriaId != categoriaIdFiltro) continue;
+
+                detalles.Agregar(new OrdenDetalle
+                {
+                    BeneficiarioId = det.BeneficiarioId,
+                    NombreBeneficiario = det.NombreBeneficiario,
+                    NivelVulnerabilidad = det.NivelVulnerabilidad,
+                    VulnerabilidadTexto = det.VulnerabilidadTexto,
+                    CategoriaId = det.CategoriaId,
+                    NombreCategoria = det.NombreCategoria,
+                    ProductoId = det.ProductoId,
+                    NombreProductoSugerido = det.NombreProductoSugerido,
+                    SKUProductoSugerido = det.SKUProductoSugerido,
+                    NombreUnidadMedida = det.NombreUnidadMedida,
+                    CantidadAsignada = asignado,
+                    DeficitCalculado = det.DeficitCalculado
+                });
+            }
+
+            return detalles;
+        }
+
+        private void ConfirmarDetalles(ListaEnlazada detalles, string titulo)
+        {
+            if (detalles.Conteo() == 0)
+            {
+                MessageBox.Show("No hay productos con cantidad mayor a cero para entregar.", "Entrega", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using (var form = new FormConfirmacionDistribucion(detalles, titulo))
+            {
+                if (form.ShowDialog(this) != DialogResult.OK) return;
+            }
+
+            try
+            {
+                servicio.ConfirmarDistribucion(detalles, txtObservaciones.Text);
+                RemoverDetallesConfirmados(detalles);
+                undoStack = new Pila();
+                btnDeshacer.Enabled = false;
+                RecargarStockPorProducto();
+                MostrarPropuesta();
+
+                MessageBox.Show("Entrega confirmada y stock actualizado exitosamente.");
+                if (propuestaActual == null || propuestaActual.Conteo() == 0)
+                {
                     this.Close();
                 }
-                catch (Exception ex)
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al confirmar: " + ex.Message);
+            }
+        }
+
+        private void RemoverDetallesConfirmados(ListaEnlazada detalles)
+        {
+            if (propuestaActual == null) return;
+            for (int i = 0; i < detalles.Conteo(); i++)
+            {
+                var confirmado = (OrdenDetalle)detalles.Obtener(i)!;
+                propuestaActual.EliminarPrimero(valor =>
                 {
-                    MessageBox.Show("Error al confirmar: " + ex.Message);
-                }
+                    var pendiente = (OrdenDetalle)valor;
+                    return pendiente.BeneficiarioId == confirmado.BeneficiarioId
+                        && pendiente.CategoriaId == confirmado.CategoriaId
+                        && pendiente.ProductoId == confirmado.ProductoId;
+                }, out _);
             }
         }
 
@@ -426,6 +642,115 @@ namespace ProyectoCatedra
                     return;
                 }
             }
+        }
+
+        private double ObtenerStockDisponibleProducto(int productoId)
+        {
+            if (productoId <= 0) return 0;
+            return (double?)stockPorProducto.Buscar(productoId.ToString()) ?? servicio.ObtenerStockProducto(productoId);
+        }
+
+        private bool AjustarAsignacionesPorStock(int productoId, int beneficiarioProtegidoId, int categoriaProtegidaId)
+        {
+            if (propuestaActual == null || productoId <= 0) return false;
+
+            double stockDisponible = ObtenerStockDisponibleProducto(productoId);
+            double totalAsignado = SumarAsignadoProducto(productoId);
+            double exceso = totalAsignado - stockDisponible;
+            if (exceso <= 0) return false;
+
+            bool huboAjuste = false;
+            for (int i = propuestaActual.Conteo() - 1; i >= 0 && exceso > 0; i--)
+            {
+                var det = (OrdenDetalle)propuestaActual.Obtener(i)!;
+                if (det.ProductoId != productoId) continue;
+                if (det.BeneficiarioId == beneficiarioProtegidoId && det.CategoriaId == categoriaProtegidaId) continue;
+
+                double reduccion = Math.Min(det.CantidadAsignada, exceso);
+                det.CantidadAsignada -= reduccion;
+                exceso -= reduccion;
+                huboAjuste = true;
+            }
+
+            if (exceso > 0)
+            {
+                for (int i = 0; i < propuestaActual.Conteo() && exceso > 0; i++)
+                {
+                    var det = (OrdenDetalle)propuestaActual.Obtener(i)!;
+                    if (det.ProductoId != productoId) continue;
+                    if (det.BeneficiarioId != beneficiarioProtegidoId || det.CategoriaId != categoriaProtegidaId) continue;
+
+                    double reduccion = Math.Min(det.CantidadAsignada, exceso);
+                    det.CantidadAsignada -= reduccion;
+                    exceso -= reduccion;
+                    huboAjuste = true;
+                }
+            }
+
+            return huboAjuste;
+        }
+
+        private double SumarAsignadoProducto(int productoId)
+        {
+            if (propuestaActual == null) return 0;
+            double total = 0;
+            for (int i = 0; i < propuestaActual.Conteo(); i++)
+            {
+                var det = (OrdenDetalle)propuestaActual.Obtener(i)!;
+                if (det.ProductoId == productoId)
+                {
+                    total += det.CantidadAsignada;
+                }
+            }
+
+            return total;
+        }
+
+        private void LimpiarAsignacionesSinCantidad()
+        {
+            if (propuestaActual == null) return;
+            ListaEnlazada limpia = new ListaEnlazada();
+            for (int i = 0; i < propuestaActual.Conteo(); i++)
+            {
+                var det = (OrdenDetalle)propuestaActual.Obtener(i)!;
+                if (det.CantidadAsignada > 0)
+                {
+                    limpia.Agregar(det);
+                }
+            }
+
+            propuestaActual = limpia;
+        }
+
+        private void RecargarStockPorProducto()
+        {
+            stockPorProducto = new TablaHash(100);
+            if (propuestaActual == null) return;
+            for (int i = 0; i < propuestaActual.Conteo(); i++)
+            {
+                var det = (OrdenDetalle)propuestaActual.Obtener(i)!;
+                if (det.ProductoId > 0)
+                {
+                    stockPorProducto.Insertar(det.ProductoId.ToString(), servicio.ObtenerStockProducto(det.ProductoId));
+                }
+            }
+        }
+
+        private void ActualizarBotonesEntrega()
+        {
+            bool hayFamilias = dgv.Rows.Count > 0;
+            bool hayProductosVisibles = false;
+            for (int i = 0; i < dgv.Rows.Count; i++)
+            {
+                if (!EsFilaGrupo(dgv.Rows[i]))
+                {
+                    hayProductosVisibles = true;
+                    break;
+                }
+            }
+
+            btnConfirmar.Enabled = hayProductosVisibles;
+            btnConfirmarFamilia.Enabled = hayFamilias;
         }
     }
 }
